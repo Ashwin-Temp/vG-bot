@@ -1,0 +1,30 @@
+{
+  "name": "new-folder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.9.0",
+    "canvas": "^3.1.0",
+    "chart.js": "^4.4.9",
+    "chartjs-node-canvas": "^5.0.0",
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.5.0",
+    "install": "^0.13.0",
+    "moment-timezone": "^0.5.48",
+    "mongodb": "^6.15.0",
+    "mongoose": "^8.13.2",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^2.7.0",
+    "npm": "^11.3.0",
+    "samp-query": "^0.1.5",
+    "undici": "^7.8.0"
+  }
+}
