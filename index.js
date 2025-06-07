@@ -751,7 +751,6 @@ async function getPlayers(interaction) {
   try {
     await interaction.deferReply();
 
-    // Retry logic: up to 3 tries, total ~2 seconds
     const querySAMP = async () => {
       const attempt = () =>
         new Promise((resolve, reject) => {
@@ -765,12 +764,12 @@ async function getPlayers(interaction) {
         try {
           const result = await Promise.race([
             attempt(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 650)) // 650ms timeout
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 650))
           ]);
           return result;
         } catch (err) {
           if (i === 2) throw err;
-          await new Promise(res => setTimeout(res, 300)); // small delay before retry
+          await new Promise(res => setTimeout(res, 300));
         }
       }
     };
@@ -778,13 +777,16 @@ async function getPlayers(interaction) {
     const response = await querySAMP();
 
     if (response.players && response.players.length > 0) {
-      const longestNameLength = Math.max(...response.players.map(p => p.name.length));
-      const nameColWidth = Math.max(longestNameLength, 4); // Ensure at least "Name" fits
+      const MAX_NAME_LENGTH = 15;
 
-      const tableHeader = `ID | Name${' '.repeat(nameColWidth - 4)} | Score`;
-      const tableRows = response.players.map(p =>
-        `${p.id.toString().padEnd(2)} | ${p.name.padEnd(nameColWidth)} | ${p.score.toString().padEnd(5)}`
-      );
+      const tableHeader = `ID | Name${' '.repeat(MAX_NAME_LENGTH - 4)} | Score`;
+      const tableRows = response.players.map(p => {
+        let displayName = p.name;
+        if (displayName.length > MAX_NAME_LENGTH) {
+          displayName = displayName.slice(0, MAX_NAME_LENGTH - 3) + '...';
+        }
+        return `${p.id.toString().padEnd(2)} | ${displayName.padEnd(MAX_NAME_LENGTH)} | ${p.score.toString().padEnd(5)}`;
+      });
 
       const playerTable = '```\n' + tableHeader + '\n' + tableRows.join('\n') + '\n```';
 
@@ -826,6 +828,7 @@ async function getPlayers(interaction) {
     await interaction.followUp({ embeds: [errorEmbed] });
   }
 }
+
 module.exports = { getPlayers };
 
 
