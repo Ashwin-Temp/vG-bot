@@ -785,7 +785,7 @@ async function getPlayers(interaction) {
         if (displayName.length > MAX_NAME_LENGTH) {
           displayName = displayName.slice(0, MAX_NAME_LENGTH - 3) + '...';
         }
-        return `${p.id.toString().padEnd(2)} | ${displayName.padEnd(MAX_NAME_LENGTH)} | ${p.score.toString().padEnd(5)}` |;
+        return `${p.id.toString().padEnd(2)} | ${displayName.padEnd(MAX_NAME_LENGTH)} | ${p.score.toString().padEnd(5)} |`;
       });
 
       const playerTable = '```\n' + tableHeader + '\n' + tableRows.join('\n') + '\n```';
