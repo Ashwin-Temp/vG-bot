@@ -778,31 +778,35 @@ async function getPlayers(interaction) {
     const response = await querySAMP();
 
     if (response.players && response.players.length > 0) {
-      const imageBuffer = generatePlayerListImage(response.players);
+      const longestNameLength = Math.max(...response.players.map(p => p.name.length));
+      const nameColWidth = Math.max(longestNameLength, 4); // Ensure at least "Name" fits
+
+      const tableHeader = `ID | Name${' '.repeat(nameColWidth - 4)} | Score`;
+      const tableRows = response.players.map(p =>
+        `${p.id.toString().padEnd(2)} | ${p.name.padEnd(nameColWidth)} | ${p.score.toString().padEnd(5)}`
+      );
+
+      const playerTable = '```\n' + tableHeader + '\n' + tableRows.join('\n') + '\n```';
 
       const embed = new EmbedBuilder()
         .setColor(config.HEX_COLOR)
         .setTitle(`🎮 ${config.SERVER_NAME} 🎮`)
-        .setDescription(`🔥 **Players Online:** ${response.players.length}/50`)
-        .setImage('attachment://playerlist.png')
+        .setDescription(`🔥 **Players Online:** ${response.players.length}/50\n${playerTable}`)
         .setFooter({
-          text: `Requested by ${interaction.member?.displayName || interaction.user.username} \n  Made with ✨`,
+          text: `Requested by ${interaction.member?.displayName || interaction.user.username} | Made with ✨`,
           iconURL: interaction.user.displayAvatarURL()
         })
         .setTimestamp();
 
-      await interaction.followUp({
-        embeds: [embed],
-        files: [{ attachment: imageBuffer, name: 'playerlist.png' }]
-      });
+      await interaction.followUp({ embeds: [embed] });
 
     } else {
       const noPlayersEmbed = new EmbedBuilder()
         .setColor(config.HEX_COLOR)
-        .setTitle(`${config.SERVER_NAME} `)
-        .setDescription(' ```😴 No players are currently online.\nCome back soon! 💤```')
+        .setTitle(`${config.SERVER_NAME}`)
+        .setDescription('```😴 No players are currently online.\nCome back soon! 💤```')
         .setFooter({
-          text: `Requested by ${interaction.member?.displayName || interaction.user.username} |\nMade with ✨`,
+          text: `Requested by ${interaction.member?.displayName || interaction.user.username} | Made with ✨`,
           iconURL: interaction.user.displayAvatarURL()
         })
         .setTimestamp();
@@ -822,7 +826,6 @@ async function getPlayers(interaction) {
     await interaction.followUp({ embeds: [errorEmbed] });
   }
 }
-
 module.exports = { getPlayers };
 
 
