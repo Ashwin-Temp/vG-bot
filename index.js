@@ -779,13 +779,13 @@ async function getPlayers(interaction) {
     if (response.players && response.players.length > 0) {
       const MAX_NAME_LENGTH = 15;
 
-      const tableHeader = `ID | Name${' '.repeat(MAX_NAME_LENGTH - 4)} | Score |\n`;
+      const tableHeader = `| ID | Name${' '.repeat(MAX_NAME_LENGTH - 4)} | Score |\n`;
       const tableRows = response.players.map(p => {
         let displayName = p.name;
         if (displayName.length > MAX_NAME_LENGTH) {
           displayName = displayName.slice(0, MAX_NAME_LENGTH - 3) + '...';
         }
-        return `${p.id.toString().padEnd(2)} | ${displayName.padEnd(MAX_NAME_LENGTH)} | ${p.score.toString().padEnd(5)} |`;
+        return `| ${p.id.toString().padEnd(2)} | ${displayName.padEnd(MAX_NAME_LENGTH)} | ${p.score.toString().padEnd(5)} |`;
       });
 
       const playerTable = '```\n' + tableHeader + '\n' + tableRows.join('\n') + '\n```';
