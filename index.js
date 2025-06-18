@@ -198,11 +198,11 @@ async function handleMcTop(interaction) {
     ].join('\n');
 
     const embed = new EmbedBuilder()
-      .setTitle(`ㅤㅤㅤ✦✦ ValiantMC [1.21+] ✦✦\nㅤAdventure • Creativity • Communityㅤㅤ`)
+      .setTitle(`ㅤㅤㅤ✦✦ ValiantMC [1.21+] ✦✦\n`)
       .setColor('#39FF14') // Cyberpunk neon green
       .setDescription(`**${titleMap[category]}**\n${leaderboard}`)
       .setFooter({
-        text: `Requested by ${interaction.user.username}`,
+        text: `Set by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
         iconURL: interaction.user.displayAvatarURL()
       })
       .setTimestamp();
