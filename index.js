@@ -156,8 +156,10 @@ async function handleMcTop(interaction) {
   const titleMap = {
     playtime: 'ㅤㅤㅤㅤ🕒 Top AFK Warriors 🕒',
     rich: 'ㅤㅤㅤㅤ💰 Top Players to Donate 💰',
-    death: 'ㅤㅤㅤㅤ☠️ Most visit to God ☠️'
+    death: 'ㅤㅤㅤㅤ☠️ Most Visits to God ☠️'
   };
+
+
 
   try {
     await interaction.deferReply();
@@ -180,15 +182,16 @@ async function handleMcTop(interaction) {
     }
 
     const top10 = sorted.slice(0, 10);
+    const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅'];
 
     const lines = top10.map((p, i) => {
       const rank = (i + 1).toString().padStart(2, '0');
       const name = p.username.length > 15 ? p.username.slice(0, 14) + '…' : p.username.padEnd(15);
       let value = '';
       if (category === 'death') value = `${p.deaths}`;
-      if (category === 'rich') value = value = `$ ${Math.floor(p.balance).toLocaleString()}`;
+      if (category === 'rich') value = `$ ${Math.floor(p.balance).toLocaleString()}`;
       if (category === 'playtime') value = formatPlaytime(p.timePlayed);
-      return `${rank}. ${name} : ${value}`;
+      return `${medals[i] || '➖'} ${name} : ${value}`;
     });
 
     const leaderboard = [
@@ -198,13 +201,18 @@ async function handleMcTop(interaction) {
     ].join('\n');
 
     const embed = new EmbedBuilder()
-      .setTitle(`ㅤㅤㅤ✦✦ ValiantMC [1.21+] ✦✦\n`)
-      .setColor('#39FF14') // Cyberpunk neon green
-      .setDescription(`**${titleMap[category]}**\n${leaderboard}`)
+      .setTitle(`ㅤㅤㅤ✦✦ ValiantMC [1.21+] ✦✦`)
+      .setColor('#39FF14')
+      .setDescription([
+        `**${titleMap[category]}**`,
+        leaderboard,
+        `_Updated: ${new Date().toLocaleDateString()}_`
+      ].join('\n'))
+      
       .setFooter({
-        text: `Set by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
-        iconURL: interaction.user.displayAvatarURL()
-      })
+          text: `Requested by ${interaction.member?.displayName || interaction.user.username} \n  Made with ✨`,
+          iconURL: interaction.user.displayAvatarURL()
+        })
       .setTimestamp();
 
     interaction.followUp({ embeds: [embed] });
@@ -214,20 +222,17 @@ async function handleMcTop(interaction) {
     interaction.followUp('⚠️ Error fetching leaderboard.');
   }
 }
+
+// Helper: Converts time string (e.g. "1d 2h 30m") to total seconds
 function parseTime(str) {
   const regex = /(?:(\d+)d)?\s*(?:(\d+)h)?\s*(?:(\d+)m)?/;
   const [, d = 0, h = 0, m = 0] = str.match(regex).map(Number);
   return d * 86400 + h * 3600 + m * 60;
 }
 
-
-
+// Helper: Formats playtime string with leading zeros
 function formatPlaytime(playtimeStr) {
-  // Example input: "1d 2h 33m"
-  // Default values
   let days = 0, hours = 0, minutes = 0;
-
-  // Use regex to extract numbers from the string
   const dayMatch = playtimeStr.match(/(\d+)d/);
   const hourMatch = playtimeStr.match(/(\d+)h/);
   const minMatch = playtimeStr.match(/(\d+)m/);
@@ -236,11 +241,8 @@ function formatPlaytime(playtimeStr) {
   if (hourMatch) hours = parseInt(hourMatch[1], 10);
   if (minMatch) minutes = parseInt(minMatch[1], 10);
 
-  // Pad with leading zeros
   return `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
 }
-
-
 
 
 
