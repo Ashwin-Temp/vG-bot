@@ -149,23 +149,74 @@ client.on('interactionCreate', async (interaction) => {
 
 
 // Command functions
+
+// Command functions
 async function handleMcTop(interaction) {
   const category = interaction.options.getString('category');
-  const endpoint = 'https://www.jinxko.com/api?endpoint=public/playerRoster';
 
   const titleMap = {
     playtime: 'ㅤㅤㅤㅤ🕒 Top AFK Warriors 🕒',
     rich: 'ㅤㅤㅤㅤ💰 Top Players to Donate 💰',
-    death: 'ㅤㅤㅤㅤ☠️ Most Visits to God ☠️'
+    death: 'ㅤㅤㅤㅤ☠️ Most Visits to God ☠️',
+    today: '🏆 Top vMC Players Today'
   };
-
-
 
   try {
     await interaction.deferReply();
-    const response = await axios.get(endpoint);
-    const roster = response.data.roster;
 
+    if (category === 'today') {
+      let response;
+      try {
+        response = await axios.get("https://my-worker.valiantgaming.workers.dev/get");
+      } catch (apiErr) {
+        console.error("Error fetching from /get:", apiErr);
+        return interaction.followUp("⚠️ Failed to fetch playtime data.");
+      }
+
+      const data = response.data;
+      if (!data || Object.keys(data).length === 0) {
+        return interaction.followUp('❌ No playtime recorded for today.');
+      }
+
+      const players = Object.entries(data).slice(0, 10); // Top 10 only
+
+      let leaderboard = '```md\n';
+      players.forEach(([username, stats], index) => {
+        const dot = stats.isOnline ? '🟡' : '';
+leaderboard += `#${String(index + 1).padEnd(2)} ${username}${dot.padEnd(16 - username.length)} : ${stats.playtime}\n`;
+
+      });
+      leaderboard += '```';
+
+      const showDotNote = players.some(([, stats]) => stats.isOnline);
+const embed = new EmbedBuilder()
+  .setTitle('ㅤㅤ✦✦ ValiantMC [1.21+] ✦✦')
+  .setColor('#39FF14')
+  .setDescription([
+    '**🏆 Top vMC Playtime Today**',
+    leaderboard,
+    ...(showDotNote ? ['ㅤ🟡 Playtime updates after logout.'] : [])
+  ].join('\n'))
+  .setFooter({
+    text: `Requested by ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
+    iconURL: interaction.user.displayAvatarURL()
+  })
+  .setTimestamp();
+
+
+      return interaction.followUp({ embeds: [embed] });
+    }
+
+    // 🟧 Handle other leaderboard categories
+    let apiRes;
+    try {
+      apiRes = await axios.get('https://www.jinxko.com/api?endpoint=public/playerRoster');
+    } catch (err) {
+      console.error("Error fetching player roster:", err);
+      return interaction.followUp("⚠️ Failed to fetch player data.");
+    }
+
+    const roster = apiRes.data.roster;
     if (!roster || roster.length === 0) {
       return interaction.followUp('❌ No player data found.');
     }
@@ -185,7 +236,6 @@ async function handleMcTop(interaction) {
     const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅'];
 
     const lines = top10.map((p, i) => {
-      const rank = (i + 1).toString().padStart(2, '0');
       const name = p.username.length > 15 ? p.username.slice(0, 14) + '…' : p.username.padEnd(15);
       let value = '';
       if (category === 'death') value = `${p.deaths}`;
@@ -194,11 +244,7 @@ async function handleMcTop(interaction) {
       return `${medals[i] || '➖'} ${name} : ${value}`;
     });
 
-    const leaderboard = [
-      '```',
-      ...lines,
-      '```'
-    ].join('\n');
+    const leaderboard = ['```', ...lines, '```'].join('\n');
 
     const embed = new EmbedBuilder()
       .setTitle(`ㅤㅤㅤ✦✦ ValiantMC [1.21+] ✦✦`)
@@ -208,20 +254,31 @@ async function handleMcTop(interaction) {
         leaderboard,
         `_Updated: ${new Date().toLocaleDateString()}_`
       ].join('\n'))
-      
       .setFooter({
-          text: `Requested by ${interaction.member?.displayName || interaction.user.username} \n  Made with ✨`,
-          iconURL: interaction.user.displayAvatarURL()
-        })
+        text: `Requested by ${interaction.member?.displayName || interaction.user.username}\n• Made with ✨`,
+        iconURL: interaction.user.displayAvatarURL()
+      })
       .setTimestamp();
 
-    interaction.followUp({ embeds: [embed] });
+    return interaction.followUp({ embeds: [embed] });
 
   } catch (err) {
-    console.error('Error in /mctop:', err);
-    interaction.followUp('⚠️ Error fetching leaderboard.');
+    console.error('Fatal error in /mctop:', err);
+
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp("⚠️ An error occurred while processing your request.");
+      } else {
+        await interaction.reply("⚠️ An error occurred while processing your request.");
+      }
+    } catch (innerErr) {
+      console.error("Error replying to Discord:", innerErr);
+    }
   }
 }
+
+
+
 
 // Helper: Converts time string (e.g. "1d 2h 30m") to total seconds
 function parseTime(str) {
@@ -243,6 +300,7 @@ function formatPlaytime(playtimeStr) {
 
   return `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
 }
+
 
 
 
