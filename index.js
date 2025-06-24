@@ -189,8 +189,9 @@ async function handleMcTop(interaction) {
 
   let leaderboard = '```md\n';
   sorted.forEach((player, index) => {
-    const dot = player.isOnline ? '🟡' : '';
-    leaderboard += `#${String(index + 1).padEnd(2)} ${player.username}${dot.padEnd(16 - player.username.length)} : ${player.playtime}\n`;
+    
+    leaderboard += `#${String(index + 1).padEnd(2)} ${player.username.padEnd(16)} : ${player.playtime}${player.isOnline ? ' 🟡' : ''}\n`;
+
   });
   leaderboard += '```';
 
