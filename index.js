@@ -165,47 +165,54 @@ async function handleMcTop(interaction) {
     await interaction.deferReply();
 
     if (category === 'today') {
-      let response;
-      try {
-        response = await axios.get("https://my-worker.valiantgaming.workers.dev/get");
-      } catch (apiErr) {
-        console.error("Error fetching from /get:", apiErr);
-        return interaction.followUp("⚠️ Failed to fetch playtime data.");
-      }
+  let response;
+  try {
+    response = await axios.get("https://my-worker.valiantgaming.workers.dev/get");
+  } catch (apiErr) {
+    console.error("Error fetching from /get:", apiErr);
+    return interaction.followUp("⚠️ Failed to fetch playtime data.");
+  }
 
-      const data = response.data;
-      if (!data || Object.keys(data).length === 0) {
-        return interaction.followUp('❌ No playtime recorded for today.');
-      }
+  const data = response.data;
+  if (!data || Object.keys(data).length === 0) {
+    return interaction.followUp('❌ No playtime recorded for today.');
+  }
 
-      const players = Object.entries(data).slice(0, 10); // Top 10 only
+  // Convert to array and sort by time (in minutes)
+  const playersArray = Object.entries(data).map(([username, stats]) => {
+    const match = stats.playtime.match(/(\d+)h (\d+)m/);
+    const mins = match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
+    return { username, ...stats, totalMinutes: mins };
+  });
 
-      let leaderboard = '```md\n';
-      players.forEach(([username, stats], index) => {
-        const dot = stats.isOnline ? '🟡' : '';
-leaderboard += `#${String(index + 1).padEnd(2)} ${username}${dot.padEnd(16 - username.length)} : ${stats.playtime}\n`;
+  const sorted = playersArray.sort((a, b) => b.totalMinutes - a.totalMinutes).slice(0, 10);
 
-      });
-      leaderboard += '```';
+  let leaderboard = '```md\n';
+  sorted.forEach((player, index) => {
+    const dot = player.isOnline ? '🟡' : '';
+    leaderboard += `#${String(index + 1).padEnd(2)} ${player.username}${dot.padEnd(16 - player.username.length)} : ${player.playtime}\n`;
+  });
+  leaderboard += '```';
 
-      const showDotNote = players.some(([, stats]) => stats.isOnline);
-const embed = new EmbedBuilder()
-  .setTitle('ㅤㅤ✦✦ ValiantMC [1.21+] ✦✦')
-  .setColor('#39FF14')
-  .setDescription([
-    '**🏆 Top vMC Playtime Today**',
-    leaderboard,
-    ...(showDotNote ? ['ㅤ🟡 Playtime updates after logout.'] : [])
-  ].join('\n'))
-  .setFooter({
-    text: `Requested by ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
-    iconURL: interaction.user.displayAvatarURL()
-  })
-  .setTimestamp();
+  const showDotNote = sorted.some(p => p.isOnline);
 
+  const embed = new EmbedBuilder()
+    .setTitle('ㅤㅤ✦✦ ValiantMC [1.21+] ✦✦')
+    .setColor('#39FF14')
+    .setDescription([
+      '**🏆 Top vMC Playtime Today**',
+      leaderboard,
+      ...(showDotNote ? ['ㅤ🟡 Playtime updates after logout.'] : [])
+    ].join('\n'))
+    .setFooter({
+      text: `Requested by ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
+      iconURL: interaction.user.displayAvatarURL()
+    })
+    .setTimestamp();
 
-      return interaction.followUp({ embeds: [embed] });
-    }
+  return interaction.followUp({ embeds: [embed] });
+}
+
 
     // 🟧 Handle other leaderboard categories
     let apiRes;
