@@ -138,6 +138,9 @@ client.on('interactionCreate', async (interaction) => {
             case 'mctop':
                 await handleMcTop(interaction);
                 break;
+            case 'vgen':
+                await vgenCommand(interaction);
+                break;
             default:
                 await interaction.reply('❓ Unknown command! Type `/help` for a list of available commands.');
         }
@@ -151,6 +154,99 @@ client.on('interactionCreate', async (interaction) => {
 // Command functions
 
 // Command functions
+async function vgenCommand(interaction) {
+  const prompt = interaction.options.getString('prompt');
+  await interaction.deferReply({ content: '🧠 vG bot is generating your image...' });
+
+
+  // Try Hugging Face First
+  try {
+    const hfResponse = await fetch(
+      'https://router.huggingface.co/nebius/v1/images/generations',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.HF_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'black-forest-labs/flux-dev',
+          prompt,
+          response_format: 'b64_json'
+        })
+      }
+    );
+
+    const hfJson = await hfResponse.json();
+    const hfBase64 = hfJson?.data?.[0]?.b64_json;
+
+    if (hfBase64) {
+      const hfBuffer = Buffer.from(hfBase64, 'base64');
+      const hfAttachment = new AttachmentBuilder(hfBuffer, { name: 'hf_image.png' });
+
+      const hfEmbed = new EmbedBuilder()
+        .setTitle('✨  vG Gens')
+        .setDescription(`**Prompt:** ${prompt}`)
+        .setImage('attachment://hf_image.png')
+        .setColor(0x8e44ad)
+        .setFooter({
+      text: `Generated for ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
+      iconURL: interaction.user.displayAvatarURL()
+    })
+    .setTimestamp();
+
+      return await interaction.editReply({ embeds: [hfEmbed], files: [hfAttachment] });
+    } else {
+      throw new Error('Hugging Face returned no image');
+    }
+
+  } catch (err) {
+    console.warn('⚠️ Hugging Face failed:', err.message || err);
+  }
+
+  // Fallback to Together.ai
+  try {
+    const tgResponse = await axios.post(
+      'https://api.together.xyz/v1/images/generations',
+      {
+        model: 'black-forest-labs/FLUX.1-schnell-Free',
+        prompt,
+        response_format: 'b64_json'
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.TOGETHER_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const tgBase64 = tgResponse.data?.data?.[0]?.b64_json;
+    if (!tgBase64) throw new Error('Together.ai returned no image');
+
+    const tgBuffer = Buffer.from(tgBase64, 'base64');
+    const tgAttachment = new AttachmentBuilder(tgBuffer, { name: 'tg_image.png' });
+
+    const tgEmbed = new EmbedBuilder()
+      .setTitle('✨  vG Gens')
+      .setDescription(`**Prompt:** ${prompt}`)
+      .setImage('attachment://tg_image.png')
+      .setColor(0xffd700)
+      .setFooter({
+      text: `Generated for ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
+      iconURL: interaction.user.displayAvatarURL()
+    })
+    .setTimestamp();
+
+    return await interaction.editReply({ embeds: [tgEmbed], files: [tgAttachment] });
+
+  } catch (err) {
+    console.error('❌ Both sources failed:', err.response?.data || err.message);
+    return await interaction.editReply('❌ Could not generate image. Try again later or with a different prompt.');
+  }
+}
+
+
 async function handleMcTop(interaction) {
   const category = interaction.options.getString('category');
 
