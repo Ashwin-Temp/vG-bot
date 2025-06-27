@@ -173,7 +173,7 @@ async function vgenCommand(interaction) {
     if (!usage || usage.date !== today) {
       dailyVgenUsage.set(userId, { count: 1, date: today });
     } else if (usage.count >= 3) {
-      return await interaction.reply('⚠️ You have used all 3 image generations for today. Try again tomorrow!');
+      return await interaction.reply('⚠️ Enough for you today! You reached 3 vgen limit!');
     } else {
       usage.count += 1;
       dailyVgenUsage.set(userId, usage);
