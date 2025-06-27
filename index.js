@@ -154,52 +154,81 @@ client.on('interactionCreate', async (interaction) => {
 // Command functions
 
 // Command functions
+
+const dailyVgenUsage = new Map(); // userId => { count, date }
+
+function getTodayDateString() {
+  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
 async function vgenCommand(interaction) {
   const prompt = interaction.options.getString('prompt');
-  await interaction.deferReply({ content: '🧠 vG bot is generating your image...' });
+  const userId = interaction.user.id;
+  const today = getTodayDateString();
 
+  // Skip limit for owner
+  if (userId !== '785077198338916412') {
+    const usage = dailyVgenUsage.get(userId);
 
-  // Try Hugging Face First
+    if (!usage || usage.date !== today) {
+      dailyVgenUsage.set(userId, { count: 1, date: today });
+    } else if (usage.count >= 3) {
+      return await interaction.reply('⚠️ You have used all 3 image generations for today. Try again tomorrow!');
+    } else {
+      usage.count += 1;
+      dailyVgenUsage.set(userId, usage);
+    }
+  }
+
+  const usage = dailyVgenUsage.get(userId);
+  const progress = userId === '785077198338916412' ? '' : `Progress: ${usage.count}/3`;
+  await interaction.deferReply({ content: `🧠 vG bot is generating your image...\n${progress}` });
+
+  const success = await generateImage(prompt, interaction);
+  if (!success) {
+    await interaction.editReply('❌ Could not generate image. Try again later or with a different prompt.');
+  }
+}
+
+async function generateImage(prompt, interaction) {
+  // Try Hugging Face first
   try {
-    const hfResponse = await fetch(
-      'https://router.huggingface.co/nebius/v1/images/generations',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.HF_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'black-forest-labs/flux-dev',
-          prompt,
-          response_format: 'b64_json'
-        })
-      }
-    );
+    const hfResponse = await fetch('https://router.huggingface.co/nebius/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.HF_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'black-forest-labs/flux-dev',
+        prompt,
+        response_format: 'b64_json',
+      }),
+    });
 
     const hfJson = await hfResponse.json();
-    const hfBase64 = hfJson?.data?.[0]?.b64_json;
+    const b64 = hfJson?.data?.[0]?.b64_json;
 
-    if (hfBase64) {
-      const hfBuffer = Buffer.from(hfBase64, 'base64');
-      const hfAttachment = new AttachmentBuilder(hfBuffer, { name: 'hf_image.png' });
+    if (b64) {
+      const buffer = Buffer.from(b64, 'base64');
+      const attachment = new AttachmentBuilder(buffer, { name: 'hf_image.png' });
 
-      const hfEmbed = new EmbedBuilder()
-        .setTitle('✨  vG Gens')
+      const embed = new EmbedBuilder()
+        .setTitle('✨ vG Gens')
         .setDescription(`**Prompt:** ${prompt}`)
         .setImage('attachment://hf_image.png')
         .setColor(0x8e44ad)
         .setFooter({
-      text: `Generated for ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
-      iconURL: interaction.user.displayAvatarURL()
-    })
-    .setTimestamp();
+          text: `Generated for ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
+          iconURL: interaction.user.displayAvatarURL(),
+        })
+        .setTimestamp();
 
-      return await interaction.editReply({ embeds: [hfEmbed], files: [hfAttachment] });
-    } else {
-      throw new Error('Hugging Face returned no image');
+      await interaction.editReply({ embeds: [embed], files: [attachment] });
+      return true;
     }
 
+    throw new Error('No image returned from HF');
   } catch (err) {
     console.warn('⚠️ Hugging Face failed:', err.message || err);
   }
@@ -211,38 +240,38 @@ async function vgenCommand(interaction) {
       {
         model: 'black-forest-labs/FLUX.1-schnell-Free',
         prompt,
-        response_format: 'b64_json'
+        response_format: 'b64_json',
       },
       {
         headers: {
           Authorization: `Bearer ${process.env.TOGETHER_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       }
     );
 
-    const tgBase64 = tgResponse.data?.data?.[0]?.b64_json;
-    if (!tgBase64) throw new Error('Together.ai returned no image');
+    const b64 = tgResponse.data?.data?.[0]?.b64_json;
+    if (!b64) throw new Error('No image from Together.ai');
 
-    const tgBuffer = Buffer.from(tgBase64, 'base64');
-    const tgAttachment = new AttachmentBuilder(tgBuffer, { name: 'tg_image.png' });
+    const buffer = Buffer.from(b64, 'base64');
+    const attachment = new AttachmentBuilder(buffer, { name: 'tg_image.png' });
 
-    const tgEmbed = new EmbedBuilder()
-      .setTitle('✨  vG Gens')
+    const embed = new EmbedBuilder()
+      .setTitle('✨ vG Gens')
       .setDescription(`**Prompt:** ${prompt}`)
       .setImage('attachment://tg_image.png')
       .setColor(0xffd700)
       .setFooter({
-      text: `Generated for ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
-      iconURL: interaction.user.displayAvatarURL()
-    })
-    .setTimestamp();
+        text: `Generated for ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
+        iconURL: interaction.user.displayAvatarURL(),
+      })
+      .setTimestamp();
 
-    return await interaction.editReply({ embeds: [tgEmbed], files: [tgAttachment] });
-
+    await interaction.editReply({ embeds: [embed], files: [attachment] });
+    return true;
   } catch (err) {
-    console.error('❌ Both sources failed:', err.response?.data || err.message);
-    return await interaction.editReply('❌ Could not generate image. Try again later or with a different prompt.');
+    console.error('❌ Together.ai failed:', err.response?.data || err.message);
+    return false;
   }
 }
 
