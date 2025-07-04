@@ -385,7 +385,7 @@ async function handleMcTop(interaction) {
       .setDescription([
         `**${titleMap[category]}**`,
         leaderboard,
-        `_Updated: ${new Date().toLocaleDateString()}_`
+        `_Updated: ${new Date().toLocaleDateString('en-GB')}_`
       ].join('\n'))
       .setFooter({
         text: `Requested by ${interaction.member?.displayName || interaction.user.username}\n• Made with ✨`,
