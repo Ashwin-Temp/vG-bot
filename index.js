@@ -1367,30 +1367,53 @@ async function getServerStatus(interaction) {
 
 // /help Command to show bot commands and usage
 async function sendHelpEmbed(interaction) {
-    await interaction.deferReply();
+  await interaction.deferReply();
 
-    const embed = new EmbedBuilder()
-        .setColor(config.HEX_COLOR)
-        .setTitle('🛠️ vG Bot Help')
-        .setThumbnail(config.ICON_URL)
-        .setDescription(`Here are the available commands for ${config.SERVER_NAME}:`)
-        .addFields(
-            { name: '/players', value: 'Shows currently online players in VG Server' },
-            { name: '/vmc', value: 'Shows currently online players in vMC' },
-            { name: '/ip', value: 'Displays server IP information' },
-            { name: '/status', value: 'Shows detailed server status' },
-            { name: '/top', value: 'Shows who played most' },
-            { name: '/chat', value: 'If you wanna get roasted by a Bot' },
-            { name: '/spark', value: 'Informs you when a player joins' },
-            { name: '/help', value: 'Shows this help message' }
-        )
-        .setFooter({
-            text: `${config.SERVER_NAME} • Made with ✨`,
-            iconURL: config.ICON_URL
-        })
-        .setTimestamp();
+  const embed = new EmbedBuilder()
+    .setColor(config.HEX_COLOR)
+    .setTitle('🛠️ vG Bot Help')
+    
+    .setDescription(`Here are the available commands for vG Bot:`)
 
-    interaction.followUp({ embeds: [embed] });
+    // 🎮 Valiant Gaming (SAMP)
+    .addFields({ name: '\u200B', value: '**🎮 Valiant Gaming (SAMP) Commands:**' })
+    .addFields(
+      { name: '/players', value: '```Shows online players in VG Server```' },
+      { name: '/ip', value: '```Displays server IP information```' },
+      { name: '/status', value: '```Shows detailed server status```' },
+      { name: '/spark', value: '```Informs you when a player joins```' },
+      { name: '/playtime', value: '```Shows your total playtime```' },
+      { name: '/trend', value: '```Shows the player activity trend```' },
+      { name: '/top', value: '```Shows top players by playtime```' },
+      { name: '/highscore', value: '```Shows the highest score players```' }
+    )
+
+    // 🧱 vMC (Minecraft)
+    .addFields({ name: '\u200B', value: '**🧱 vMC (Minecraft) Commands:**' })
+    .addFields(
+      { name: '/vmc', value: '```Shows online players in vMC```' },
+      { name: '/mcstats', value: '```Shows playerStats in vMC```' },
+      { name: '/vmcname', value: '```Link your vMC to your Discord account```' },
+      { name: '/mctop', value: '```Shows vMC Leaderboard```' },
+   
+    )
+
+    // ⚙️ General
+    .addFields({ name: '\u200B', value: '**⚙️ General Utility Commands:**' })
+    .addFields(
+      { name: '/chat', value: '```Talk to the AI chatbot```' },
+      { name: '/vgen', value: '```Generate an image from your prompt```' },
+      { name: '/cri', value: '```Crys eviritim 😭```' },
+      { name: '/help', value: '```Shows this help message```' }
+    )
+
+    .setFooter({
+      text: `Requested by ${interaction.member?.displayName || interaction.user.username} • Made with ✨\n`,
+      iconURL: interaction.user.displayAvatarURL()
+    })
+    .setTimestamp();
+
+  interaction.followUp({ embeds: [embed] });
 }
 
 async function handleCriCommand(interaction) {
