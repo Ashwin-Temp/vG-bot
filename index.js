@@ -1406,15 +1406,17 @@ async function sendHelpEmbed(interaction) {
       { name: '/cri', value: '```Crys eviritim 😭```' },
       { name: '/help', value: '```Shows this help message```' }
     )
+    .addFields({ name: '\u200B', value: '**Total Commands: 16**' })
 
     .setFooter({
-      text: `Requested by ${interaction.member?.displayName || interaction.user.username} • Made with ✨\n`,
+      text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨\n`,
       iconURL: interaction.user.displayAvatarURL()
     })
     .setTimestamp();
 
   interaction.followUp({ embeds: [embed] });
 }
+
 
 async function handleCriCommand(interaction) {
     const name = interaction.member.displayName;
