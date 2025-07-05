@@ -811,138 +811,20 @@ function buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, is
 }
 
 
-function drawRoundedRect(ctx, x, y, width, height, radius) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}
-
-// Helper to draw rectangle with only top corners rounded (for header background)
-function drawRoundedRectTopCorners(ctx, x, y, width, height, radius) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height);
-  ctx.lineTo(x, y + height);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}
-
-// Generate the player list image with styling
-function generatePlayerListImage(players) {
-  const fontSize = 20;
-  const lineHeight = fontSize + 12;
-  const maxRows = 25;
-  const rowCount = Math.min(players.length, maxRows);
-  const columnWidths = [50, 250, 100];
-  const contentWidth = columnWidths.reduce((a, b) => a + b, 0);
-  const contentHeight = (rowCount + 1) * lineHeight;
-
-  const canvas = createCanvas(contentWidth, contentHeight);
-  const ctx = canvas.getContext('2d');
-  const radius = 20;
-
-  // Background
-  ctx.fillStyle = '#222222';
-  drawRoundedRect(ctx, 0, 0, contentWidth, contentHeight, radius);
-  ctx.fill();
-
-  // Header
-  const gradient = ctx.createLinearGradient(0, 0, contentWidth, 0);
-  gradient.addColorStop(0, '#3f51b5');
-  gradient.addColorStop(1, '#9c27b0');
-  ctx.fillStyle = gradient;
-  drawRoundedRectTopCorners(ctx, 0, 0, contentWidth, lineHeight, radius);
-  ctx.fill();
-
-  // Zebra rows
-  for (let i = 0; i < rowCount; i++) {
-    if (i % 2 === 0) {
-      ctx.fillStyle = '#262626';
-      ctx.fillRect(0, lineHeight * (i + 1), contentWidth, lineHeight);
-    }
-  }
-
-  ctx.font = `bold ${fontSize}px monospace`;
-  ctx.textBaseline = 'middle';
-
-  // Header text
-  ctx.fillStyle = '#ffffff';
-  ['ID', 'NICKNAME', 'SCORE'].forEach((text, i) => {
-    const x = columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
-    ctx.fillText(text, x + 10, lineHeight / 2);
-  });
-
-  // Column borders
-  ctx.strokeStyle = '#ffffff22';
-  ctx.lineWidth = 1;
-  let x = 0;
-  columnWidths.forEach(w => {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, contentHeight);
-    ctx.stroke();
-    x += w;
-  });
-  ctx.beginPath();
-  ctx.moveTo(contentWidth, 0);
-  ctx.lineTo(contentWidth, contentHeight);
-  ctx.stroke();
-
-  const greyNames = ['[vg]noir', '[vg]p.k', '[vg]sd', '[vg]strom'];
-  const blueNames = ['[vg]sheikh', '[vg]atk', 'epep', '[vg]bam', '[vg]mic', 'muhammad', 'wax', '[vg]ace', '[vg]pluto'];
-
-  // Player rows
-  players.slice(0, maxRows).forEach((player, idx) => {
-    const rowY = lineHeight * (idx + 1);
-    const name = player.name.replace(/`/g, "'").substring(0, 15);
-    const row = [(idx + 1).toString(), name, player.score.toString()];
-    const normName = player.name.toLowerCase();
-
-    row.forEach((text, i) => {
-      const cellX = columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
-
-      if (i === 1) {
-       if (player.name === '[vG]Sparkle') {
-            ctx.fillStyle = '#E91E63'; // Pink
-        } else if (greyNames.includes(normName)) {
-            ctx.fillStyle = '#6a6b6b'; // Grey
-        } else if (blueNames.includes(normName)) {
-        ctx.fillStyle = '#0165fe'; // Blue
-        } else if (player.name.includes('[vG]')) {
-        ctx.fillStyle = '#9bcc32'; // Green for other [vG]
-        } else {
-         ctx.fillStyle = '#ffffff'; // White
-        }
-
-      } else if (i === 2) {
-        ctx.fillStyle = parseInt(player.score) >= 500 ? '#00e676' : '#FF9800'; // Score-based
-      } else {
-        ctx.fillStyle = '#ffffff'; // Default
-      }
-
-      ctx.fillText(text, cellX + 10, rowY + lineHeight / 2);
-    });
-  });
-
-  return canvas.toBuffer('image/png');
-}
-
-
-// The getPlayers command function
 async function getPlayers(interaction) {
   try {
     await interaction.deferReply();
+
+    const ESC = '\u001b[';
+    const reset = `${ESC}0m`;
+    const red = `${ESC}31m`;
+    const green = `${ESC}32m`;
+    const yellow = `${ESC}33m`;
+    const blue = `${ESC}34m`;
+    const cyan = `${ESC}36m`;
+    const magenta = `${ESC}35m`;
+
+    const MAX_NAME_LENGTH = 17; // reduced by 1
 
     const querySAMP = async () => {
       const attempt = () =>
@@ -957,7 +839,7 @@ async function getPlayers(interaction) {
         try {
           const result = await Promise.race([
             attempt(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 650))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 1000))
           ]);
           return result;
         } catch (err) {
@@ -970,28 +852,69 @@ async function getPlayers(interaction) {
     const response = await querySAMP();
 
     if (response.players && response.players.length > 0) {
-      const MAX_NAME_LENGTH = 15;
+      // const rowLine = '|'+ '✿'.repeat(21) + ' |' +'\n';
+      const rowLine = '✿'.repeat(23) +'\n';
+      const tableHeader = 
+  `| ${red}# ${reset} | ${red}Name${reset}${' '.repeat(MAX_NAME_LENGTH - 7)} 🎮 | ${red}Score${reset} |\n`;
 
-      const tableHeader = ` ID | Name${' '.repeat(MAX_NAME_LENGTH - 4)} | Score |\n`;
+
+
       const tableRows = response.players.map(p => {
-        let displayName = p.name;
-        if (displayName.length > MAX_NAME_LENGTH) {
-          displayName = displayName.slice(0, MAX_NAME_LENGTH - 3) + '...';
+        let name = p.name;
+        const lower = name.toLowerCase();
+
+        // Assign role emoji
+        const emoji =
+          /axis|flame|cruella/.test(lower) ? '👑' :
+          /sheikh/.test(lower) ? '🪩' :
+          /atk/.test(lower) ? '🌟' :
+          /toxin|bam/.test(lower) ? '🌞' :
+          /sparkle/.test(lower) ? '✨' :
+          /pluto/.test(lower) ? '🎖️' :
+          /\[vg\]/i.test(name) ? '💠' :
+          '🌀'; // normal player
+
+        const nameSpace = MAX_NAME_LENGTH - 2; // 2 spaces reserved for emoji
+        if (name.length > nameSpace) {
+          name = name.slice(0, nameSpace - 3) + '...';
         }
-        return ` ${p.id.toString().padEnd(2)} | ${displayName.padEnd(MAX_NAME_LENGTH)} | ${p.score.toString().padEnd(5)} |`;
+
+        const paddedName = name.padEnd(nameSpace);
+        const finalName = `${paddedName}${emoji}`;
+
+        const coloredName = /\[vG\]Sparkle/i.test(p.name)
+          ? `${magenta}${finalName}${reset}`
+          : finalName;
+
+        let scoreColor = blue;
+        if (p.score >= 1000) scoreColor = green;
+        else if (p.score > 300) scoreColor = yellow;
+
+        return `| ${cyan}${p.id.toString().padEnd(2)}${reset} | ${coloredName} | ${scoreColor}${p.score.toString().padStart(5)}${reset} |`;
       });
 
-      const playerTable = '```\n' + tableHeader + '\n' + tableRows.join('\n') + '\n```';
+      const playerTable = '```ansi\n' + tableHeader + rowLine + tableRows.join('\n') + '\n```';
 
-      const embed = new EmbedBuilder()
-        .setColor(config.HEX_COLOR)
-        .setTitle(`🎮 ${config.SERVER_NAME} 🎮`)
-        .setDescription(`🔥 **Players Online:** ${response.players.length}/50\n${playerTable}`)
-        .setFooter({
-          text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
-          iconURL: interaction.user.displayAvatarURL()
-        })
-        .setTimestamp();
+      const lastUpdatedUnix = Math.floor(Date.now() / 1000); // current timestamp in seconds
+
+const embed = new EmbedBuilder()
+  .setColor(config.HEX_COLOR)
+  .setTitle(`🛡️\u200B  Valiant Roleplay/Freeroam 🛡️`)
+  .setDescription(`\u200B\n🌍 **Players Online:** ${response.players.length}/50\n${playerTable}`)
+
+  .addFields([
+    {
+      name: `Status: 🟢`,
+      value: `**Updated:** <t:${lastUpdatedUnix}:R>🧿 `, // shows "a few seconds ago"
+      inline: false
+    }
+  ])
+  .setFooter({
+    text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
+    iconURL: interaction.user.displayAvatarURL()
+  })
+  .setTimestamp();
+
 
       await interaction.followUp({ embeds: [embed] });
 
@@ -1021,10 +944,6 @@ async function getPlayers(interaction) {
     await interaction.followUp({ embeds: [errorEmbed] });
   }
 }
-
-module.exports = { getPlayers };
-
-
 
 
 
