@@ -949,6 +949,8 @@ const embed = new EmbedBuilder()
 
 
 
+
+
 async function trendCommand(interaction) {
     const timeZone = 'Etc/GMT-1';  // UTC+1
     const uri = 'mongodb+srv://vg-bot:ashwinjr10@vg-bot.eypjth3.mongodb.net/?retryWrites=true&w=majority&appName=vG-Bot';
