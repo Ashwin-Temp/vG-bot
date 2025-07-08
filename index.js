@@ -163,7 +163,7 @@ client.on('messageCreate', async (message) => {
     const now = Date.now();
     const cooldownDuration = 5000;
 
-    // Skip if still on cooldown
+    // Check cooldown
     if (cooldowns.has(userId) && now - cooldowns.get(userId) < cooldownDuration) {
         return;
     }
@@ -181,19 +181,25 @@ client.on('messageCreate', async (message) => {
     };
 
     try {
-        // 🔐 Set cooldown *before* calling the async function
         if (vmcTriggers.includes(content)) {
             cooldowns.set(userId, now);
             await getMinecraftPlayers(fakeInteraction);
         } else if (playerTriggers.includes(content)) {
             cooldowns.set(userId, now);
-            await getPlayers(fakeInteraction);
+
+            // 🔽 Special case: inside Valiant server, just trigger `.p`
+            if (message.guild?.id === '1068500987519709184') {
+                await message.reply('.p'); // triggers other bot
+            } else {
+                await getPlayers(fakeInteraction); // normal behavior
+            }
         }
     } catch (err) {
         console.error('Error in message command:', err);
         await message.reply('❌ Something went wrong while processing your request.');
     }
 });
+
 
 
 const dailyVgenUsage = new Map(); // userId => { count, date }
