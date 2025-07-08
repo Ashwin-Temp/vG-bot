@@ -154,81 +154,78 @@ client.on('interactionCreate', async (interaction) => {
 // Command functions
 const cooldowns = new Map();
 
+// Constants
+const COOLDOWN_DURATION = 5000;
+const REPLY_TIMEOUT = 3000;
+const SPECIAL_SERVER_ID = '1068500987519709184';
+const OTHER_BOT_ID = '1069232765121351770';
+
+async function handleCommand(isPlayer, interaction) {
+  return isPlayer
+    ? getPlayers(interaction)
+    : getMinecraftPlayers(interaction);
+}
+
 client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
+  if (message.author.bot || !message.guild) return;
 
-    const content = message.content.trim().toLowerCase();
-    const userId = message.author.id;
-    const now = Date.now();
-    const cooldownDuration = 5000;
+  const content = message.content.trim().toLowerCase();
+  const userId = message.author.id;
+  const guildId = message.guild.id;
 
-    // ✅ Cooldown check
-    if (cooldowns.has(userId) && now - cooldowns.get(userId) < cooldownDuration) return;
+  const isPlayer = ['p', 'players'].includes(content);
+  const isVMC = ['v', 'vmc', 'mc'].includes(content);
+  if (!isPlayer && !isVMC) return;
 
-    const vmcTriggers = ['vmc', 'v', 'mc'];
-    const playerTriggers = ['p', 'player'];
-    const isVMC = vmcTriggers.includes(content);
-    const isPlayer = playerTriggers.includes(content);
-    if (!isVMC && !isPlayer) return;
+  // Cooldown check
+  if (cooldowns.has(userId)) return;
+  cooldowns.set(userId, true);
+  setTimeout(() => cooldowns.delete(userId), COOLDOWN_DURATION);
 
-    cooldowns.set(userId, now); // 🔒 Apply cooldown early
+  // Fake interaction object for message triggers
+  const fakeInteraction = {
+    user: message.author,
+    channel: message.channel,
+    deferReply: async () => {},
+    followUp: (data) => message.reply(data),
+    member: message.member,
+    guild: message.guild,
+  };
 
-    const guildId = message.guild?.id;
-    const specialServerId = '1068500987519709184'; // ✅ Your server
-    const otherBotId = '1069232765121351770'; // ✅ Bot that replies to .p and .mc
+  try {
+    // Inside your special server
+    if (guildId === SPECIAL_SERVER_ID) {
+      const triggerText = isPlayer ? '.p' : '.mc';
+      const triggerMsg = await message.reply(triggerText);
 
-    const fakeInteraction = {
-        user: message.author,
-        channel: message.channel,
-        deferReply: async () => {},
-        followUp: (data) => message.reply(data),
-        member: message.member,
-        guild: message.guild,
-    };
+      try {
+        const filter = (m) =>
+          m.author.id === OTHER_BOT_ID &&
+          m.channel.id === message.channel.id &&
+          m.createdTimestamp > triggerMsg.createdTimestamp;
 
-    try {
-        if (guildId === specialServerId) {
-            const triggerText = isPlayer ? '.p' : '.mc';
-            const triggerMsg = await message.reply(triggerText);
+        await message.channel.awaitMessages({
+          filter,
+          max: 1,
+          time: REPLY_TIMEOUT,
+          errors: ['time'],
+        });
 
-            try {
-                // ✅ Wait up to 3 seconds for reply from other bot
-                const filter = (m) =>
-                    m.author.id === otherBotId &&
-                    m.channel.id === message.channel.id &&
-                    m.createdTimestamp > triggerMsg.createdTimestamp;
-
-                await message.channel.awaitMessages({
-                    filter,
-                    max: 1,
-                    time: 3000,
-                    errors: ['time'],
-                });
-
-                console.log(`✅ ${triggerText} — External bot replied.`);
-                // External bot handled it — do nothing more
-            } catch {
-                console.log(`⏱️ No reply from external bot to ${triggerText}, falling back.`);
-
-                // ⏬ Fallback to your own function
-                if (isPlayer) {
-                    await getPlayers(fakeInteraction);
-                } else {
-                    await getMinecraftPlayers(fakeInteraction);
-                }
-            }
-        } else {
-            // 🌍 Other servers → directly run
-            if (isPlayer) {
-                await getPlayers(fakeInteraction);
-            } else {
-                await getMinecraftPlayers(fakeInteraction);
-            }
-        }
-    } catch (err) {
-        console.error('❌ Command error:', err);
-        await message.reply('❌ Something went wrong.');
+        console.log(`✅ ${triggerText} — External bot responded.`);
+      } catch {
+        console.log(`⏱️ No reply from external bot to ${triggerText}, falling back.`);
+        await handleCommand(isPlayer, fakeInteraction);
+      } finally {
+        await triggerMsg.delete().catch(() => {});
+      }
+    } else {
+      // For other servers — run directly
+      await handleCommand(isPlayer, fakeInteraction);
     }
+  } catch (err) {
+    console.error('❌ Command error:', err);
+    await message.reply('❌ Something went wrong.').catch(() => {});
+  }
 });
 
 
