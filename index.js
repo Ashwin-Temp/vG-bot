@@ -167,8 +167,8 @@ client.on('messageCreate', async (message) => {
     const vmcTriggers = ['vmc', 'v', 'mc'];
     const playerTriggers = ['p', 'player'];
     const guildId = message.guild?.id;
-    const specialServerId = '1069232765121351770';
-    const otherBotId = 'OTHER_BOT_ID'; // 🔁 Replace with actual bot ID
+    const specialServerId = '1068500987519709184';
+    const otherBotId = '1069232765121351770'; // 🔁 Replace with actual bot ID
 
     const fakeInteraction = {
         user: message.author,
