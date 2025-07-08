@@ -153,7 +153,48 @@ client.on('interactionCreate', async (interaction) => {
 
 // Command functions
 
-// Command functions
+const cooldowns = new Map(); // userId -> timestamp
+
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    const content = message.content.trim().toLowerCase();
+    const userId = message.author.id;
+    const now = Date.now();
+    const cooldownDuration = 5000;
+
+    // Skip if still on cooldown
+    if (cooldowns.has(userId) && now - cooldowns.get(userId) < cooldownDuration) {
+        return;
+    }
+
+    const vmcTriggers = ['vmc', 'v', 'mc'];
+    const playerTriggers = ['p', 'player', 'players'];
+
+    const fakeInteraction = {
+        user: message.author,
+        channel: message.channel,
+        deferReply: async () => {},
+        followUp: (data) => message.reply(data),
+        member: message.member,
+        guild: message.guild
+    };
+
+    try {
+        // 🔐 Set cooldown *before* calling the async function
+        if (vmcTriggers.includes(content)) {
+            cooldowns.set(userId, now);
+            await getMinecraftPlayers(fakeInteraction);
+        } else if (playerTriggers.includes(content)) {
+            cooldowns.set(userId, now);
+            await getPlayers(fakeInteraction);
+        }
+    } catch (err) {
+        console.error('Error in message command:', err);
+        await message.reply('❌ Something went wrong while processing your request.');
+    }
+});
+
 
 const dailyVgenUsage = new Map(); // userId => { count, date }
 
