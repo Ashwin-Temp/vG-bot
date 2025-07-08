@@ -152,6 +152,8 @@ client.on('interactionCreate', async (interaction) => {
 
 
 // Command functions
+const cooldowns = new Map();
+
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
@@ -160,15 +162,20 @@ client.on('messageCreate', async (message) => {
     const now = Date.now();
     const cooldownDuration = 5000;
 
-    if (cooldowns.has(userId) && now - cooldowns.get(userId) < cooldownDuration) {
-        return;
-    }
+    // ✅ Cooldown check
+    if (cooldowns.has(userId) && now - cooldowns.get(userId) < cooldownDuration) return;
 
     const vmcTriggers = ['vmc', 'v', 'mc'];
     const playerTriggers = ['p', 'player'];
+    const isVMC = vmcTriggers.includes(content);
+    const isPlayer = playerTriggers.includes(content);
+    if (!isVMC && !isPlayer) return;
+
+    cooldowns.set(userId, now); // 🔒 Apply cooldown early
+
     const guildId = message.guild?.id;
-    const specialServerId = '1068500987519709184';
-    const otherBotId = '1069232765121351770'; // 🔁 Replace with actual bot ID
+    const specialServerId = '1068500987519709184'; // ✅ Your server
+    const otherBotId = '1069232765121351770'; // ✅ Bot that replies to .p and .mc
 
     const fakeInteraction = {
         user: message.author,
@@ -179,19 +186,13 @@ client.on('messageCreate', async (message) => {
         guild: message.guild,
     };
 
-    const isVMC = vmcTriggers.includes(content);
-    const isPlayer = playerTriggers.includes(content);
-
-    if (!isVMC && !isPlayer) return;
-
-    cooldowns.set(userId, now);
-
     try {
         if (guildId === specialServerId) {
             const triggerText = isPlayer ? '.p' : '.mc';
             const triggerMsg = await message.reply(triggerText);
 
             try {
+                // ✅ Wait up to 3 seconds for reply from other bot
                 const filter = (m) =>
                     m.author.id === otherBotId &&
                     m.channel.id === message.channel.id &&
@@ -204,28 +205,32 @@ client.on('messageCreate', async (message) => {
                     errors: ['time'],
                 });
 
-                console.log(`✅ External bot responded to ${triggerText}`);
-            } catch (e) {
-                console.log(`⚠️ No response to ${triggerText}, running fallback.`);
+                console.log(`✅ ${triggerText} — External bot replied.`);
+                // External bot handled it — do nothing more
+            } catch {
+                console.log(`⏱️ No reply from external bot to ${triggerText}, falling back.`);
+
+                // ⏬ Fallback to your own function
                 if (isPlayer) {
                     await getPlayers(fakeInteraction);
-                } else if (isVMC) {
+                } else {
                     await getMinecraftPlayers(fakeInteraction);
                 }
             }
         } else {
-            // Not special server → call directly
+            // 🌍 Other servers → directly run
             if (isPlayer) {
                 await getPlayers(fakeInteraction);
-            } else if (isVMC) {
+            } else {
                 await getMinecraftPlayers(fakeInteraction);
             }
         }
     } catch (err) {
-        console.error('❌ Error in message command:', err);
+        console.error('❌ Command error:', err);
         await message.reply('❌ Something went wrong.');
     }
 });
+
 
 
 const dailyVgenUsage = new Map(); // userId => { count, date }
