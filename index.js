@@ -155,14 +155,20 @@ client.on('interactionCreate', async (interaction) => {
 const cooldowns = new Map();
 
 // Constants
-const COOLDOWN_DURATION = 5000;
-const REPLY_TIMEOUT = 3000;
+const COOLDOWN_DURATION = 5000; // 5 seconds
+const REPLY_TIMEOUT = 3000;     // 3 seconds
 const SPECIAL_SERVER_ID = '1068500987519709184';
 const OTHER_BOT_ID = '1069232765121351770';
 
-// 🔒 Message-specific blacklist (not slash)
+// Channels where p/v/vmc/mc should be ignored
+const IGNORED_CHANNELS = new Set([
+  '1226705208545906754',
+  '1226706678267908167',
+]);
+
+// Blacklisted users (message-based triggers only)
 const BLACKLISTED_MESSAGE_USERS = new Set([
-  '836294168632361000', // Add more IDs here
+  '836294168632361000', // Add more user IDs as needed
 ]);
 
 async function handleCommand(isPlayer, interaction) {
@@ -177,12 +183,18 @@ client.on('messageCreate', async (message) => {
   const content = message.content.trim().toLowerCase();
   const userId = message.author.id;
   const guildId = message.guild.id;
+  const channelId = message.channel.id;
 
   const isPlayer = ['p', 'players'].includes(content);
   const isVMC = ['v', 'vmc', 'mc'].includes(content);
+
+  // ❌ Ignore non-matching commands
   if (!isPlayer && !isVMC) return;
 
-  // 🛑 If blacklisted user — always reply Meow Meow
+  // ❌ Ignore in restricted channels
+  if (IGNORED_CHANNELS.has(channelId)) return;
+
+  // 🛑 Meow Meow for blacklisted users
   if (BLACKLISTED_MESSAGE_USERS.has(userId)) {
     try {
       await message.reply("Meow Meow");
@@ -195,6 +207,7 @@ client.on('messageCreate', async (message) => {
   cooldowns.set(userId, true);
   setTimeout(() => cooldowns.delete(userId), COOLDOWN_DURATION);
 
+  // 👻 Fake interaction object to reuse slash logic
   const fakeInteraction = {
     user: message.author,
     channel: message.channel,
@@ -206,6 +219,7 @@ client.on('messageCreate', async (message) => {
 
   try {
     if (guildId === SPECIAL_SERVER_ID) {
+      // Trigger other bot in special server
       const triggerText = isPlayer ? '.p' : '.mc';
       const triggerMsg = await message.reply(triggerText);
 
@@ -229,7 +243,9 @@ client.on('messageCreate', async (message) => {
       } finally {
         await triggerMsg.delete().catch(() => {});
       }
+
     } else {
+      // All other servers
       await handleCommand(isPlayer, fakeInteraction);
     }
   } catch (err) {
