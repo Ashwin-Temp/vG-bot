@@ -160,6 +160,11 @@ const REPLY_TIMEOUT = 3000;
 const SPECIAL_SERVER_ID = '1068500987519709184';
 const OTHER_BOT_ID = '1069232765121351770';
 
+// 🔒 Message-specific blacklist (not slash)
+const BLACKLISTED_MESSAGE_USERS = new Set([
+  '836294168632361000', // Add more IDs here
+]);
+
 async function handleCommand(isPlayer, interaction) {
   return isPlayer
     ? getPlayers(interaction)
@@ -177,12 +182,19 @@ client.on('messageCreate', async (message) => {
   const isVMC = ['v', 'vmc', 'mc'].includes(content);
   if (!isPlayer && !isVMC) return;
 
-  // Cooldown check
+  // 🛑 If blacklisted user — always reply Meow Meow
+  if (BLACKLISTED_MESSAGE_USERS.has(userId)) {
+    try {
+      await message.reply("Meow Meow");
+    } catch {}
+    return;
+  }
+
+  // ⏱ Cooldown check
   if (cooldowns.has(userId)) return;
   cooldowns.set(userId, true);
   setTimeout(() => cooldowns.delete(userId), COOLDOWN_DURATION);
 
-  // Fake interaction object for message triggers
   const fakeInteraction = {
     user: message.author,
     channel: message.channel,
@@ -193,7 +205,6 @@ client.on('messageCreate', async (message) => {
   };
 
   try {
-    // Inside your special server
     if (guildId === SPECIAL_SERVER_ID) {
       const triggerText = isPlayer ? '.p' : '.mc';
       const triggerMsg = await message.reply(triggerText);
@@ -213,18 +224,19 @@ client.on('messageCreate', async (message) => {
 
         console.log(`✅ ${triggerText} — External bot responded.`);
       } catch {
-        console.log(`⏱️ No reply from external bot to ${triggerText}, falling back.`);
+        console.log(`⏱️ No reply from other bot, fallback triggered.`);
         await handleCommand(isPlayer, fakeInteraction);
       } finally {
         await triggerMsg.delete().catch(() => {});
       }
     } else {
-      // For other servers — run directly
       await handleCommand(isPlayer, fakeInteraction);
     }
   } catch (err) {
-    console.error('❌ Command error:', err);
-    await message.reply('❌ Something went wrong.').catch(() => {});
+    console.error('❌ Error handling command:', err);
+    try {
+      await message.reply('❌ Something went wrong.').catch(() => {});
+    } catch {}
   }
 });
 
