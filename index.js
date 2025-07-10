@@ -166,11 +166,6 @@ const IGNORED_CHANNELS = new Set([
   '1226706678267908167',
 ]);
 
-// Blacklisted users (message-based triggers only)
-const BLACKLISTED_MESSAGE_USERS = new Set([
-  '836294168632361000', // Add more user IDs as needed
-]);
-
 async function handleCommand(isPlayer, interaction) {
   return isPlayer
     ? getPlayers(interaction)
@@ -193,14 +188,6 @@ client.on('messageCreate', async (message) => {
 
   // ❌ Ignore in restricted channels
   if (IGNORED_CHANNELS.has(channelId)) return;
-
-  // 🛑 Meow Meow for blacklisted users
-  if (BLACKLISTED_MESSAGE_USERS.has(userId)) {
-    try {
-      await message.reply("Meow Meow");
-    } catch {}
-    return;
-  }
 
   // ⏱ Cooldown check
   if (cooldowns.has(userId)) return;
