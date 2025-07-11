@@ -193,14 +193,14 @@ async function vmcSparkCommand(interaction) {
     });
 
     const embed = new EmbedBuilder()
-      .setTitle('ㅤㅤㅤVMC Spark ⛏️\n')
-      .setDescription('\nYou’ll be notified when **${playerName}** joins the VMC server!')
+      .setTitle('ㅤㅤㅤㅤㅤVMC Spark ⛏️\n')
+      .setDescription(`\n\NYou’ll be notified when **${playerName}** joins the VMC server!`)
       .addFields({
-        name: `⏱️ Time of Request: <t:${unix}:F>`,
-        value: ``,
+        name: ``,
+        value: `⏱️ Time of Request: <t:${unix}:F>`,
         inline: false
       })
-      .setColor('Orange')
+      .setColor('Yellow')
       .setFooter({
         text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
         iconURL: interaction.user.displayAvatarURL()
