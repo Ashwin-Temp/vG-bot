@@ -108,6 +108,9 @@ client.on('interactionCreate', async (interaction) => {
             case 'spark':
                 await sparkCommand(interaction);
                 break;
+             case 'mcspark':
+                await vmcSparkCommand(interaction);
+                break;
             case 'cri':
                 await handleCriCommand(interaction);
                 break;
