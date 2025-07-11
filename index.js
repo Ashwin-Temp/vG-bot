@@ -157,7 +157,7 @@ client.on('interactionCreate', async (interaction) => {
 
 
 // Command functions
-const { EmbedBuilder } = require('discord.js');
+
 
 async function vmcSparkCommand(interaction) {
   const playerName = interaction.options.getString('player')?.toLowerCase();
