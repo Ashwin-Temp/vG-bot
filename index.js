@@ -152,6 +152,54 @@ client.on('interactionCreate', async (interaction) => {
 
 
 // Command functions
+async function vmcSparkCommand(interaction) {
+    const playerName = interaction.options.getString('player')?.toLowerCase();
+    const userId = interaction.user.id;
+    const channelId = interaction.channel.id;
+
+    if (!playerName) {
+        return interaction.reply('❌ Please provide the player name like `/mcspark [player]`!');
+    }
+
+    let deferred = false;
+
+    try {
+        await interaction.deferReply();
+        deferred = true;
+
+        const collection = db.collection(config.VMCSPARK_COLLECTION);
+
+        const alreadyTracking = await collection.findOne({ playerName, userId });
+
+        if (alreadyTracking) {
+            return interaction.editReply(`⚠️ You’ve already sparked **${playerName}** for Minecraft.\nYou'll be notified when they join! ⛏️`);
+        }
+
+        await collection.insertOne({
+            playerName,
+            userId,
+            channelId,
+            createdAt: new Date(),
+            notified: false
+        });
+
+        return interaction.editReply(`✅ You’ll be notified when **${playerName}** joins the Minecraft server! ⛏️`);
+
+    } catch (err) {
+        console.error("❌ Error in /mcspark command:", err);
+        if (deferred) {
+            return interaction.editReply('❌ Something went wrong while processing your Minecraft spark. Please try again later.');
+        } else {
+            return interaction.reply({
+                content: '❌ Failed to process your spark request. Try again.',
+                ephemeral: true
+            }).catch(() => {});
+        }
+    }
+}
+
+
+
 const cooldowns = new Map();
 
 // Constants
