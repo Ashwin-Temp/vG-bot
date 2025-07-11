@@ -32,6 +32,8 @@ const config = {
     MC_HEX_COLOR: '#FF5733', // Embed color for Minecraft
     MC_ICON_URL: 'https://example.com/mc-icon.png', // Icon for Minecraft server embed
     MC_MAX_PLAYERS_PER_PAGE: 10, 
+    VMCSPARK_COLLECTION: 'vmcSparkRequests',
+
 };
 
 // MongoDB Client Setup
