@@ -193,11 +193,11 @@ async function vmcSparkCommand(interaction) {
     });
 
     const embed = new EmbedBuilder()
-      .setTitle('VMC Spark ⛏️')
-      .setDescription(`\`\`\`\nYou’ll be notified when ${playerName} joins the Minecraft server!\`\`\``)
+      .setTitle('ㅤㅤㅤVMC Spark ⛏️\n')
+      .setDescription('\nYou’ll be notified when **${playerName}** joins the VMC server!')
       .addFields({
-        name: '⏱️ Time of Request',
-        value: `<t:${unix}:R>`,
+        name: `⏱️ Time of Request: <t:${unix}:F>`,
+        value: ``,
         inline: false
       })
       .setColor('Orange')
