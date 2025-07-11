@@ -157,51 +157,71 @@ client.on('interactionCreate', async (interaction) => {
 
 
 // Command functions
+const { EmbedBuilder } = require('discord.js');
+
 async function vmcSparkCommand(interaction) {
-    const playerName = interaction.options.getString('player')?.toLowerCase();
-    const userId = interaction.user.id;
-    const channelId = interaction.channel.id;
+  const playerName = interaction.options.getString('player')?.toLowerCase();
+  const userId = interaction.user.id;
+  const channelId = interaction.channel.id;
 
-    if (!playerName) {
-        return interaction.reply('❌ Please provide the player name like `/mcspark [player]`!');
+  if (!playerName) {
+    return interaction.reply('❌ Please provide the player name like `/mcspark [player]`!');
+  }
+
+  let deferred = false;
+
+  try {
+    await interaction.deferReply();
+    deferred = true;
+
+    const collection = db.collection(config.VMCSPARK_COLLECTION);
+    const alreadyTracking = await collection.findOne({ playerName, userId });
+
+    if (alreadyTracking) {
+      return interaction.editReply(`⚠️ You’ve already sparked **${playerName}** for Minecraft.\nYou'll be notified when they join! ⛏️`);
     }
 
-    let deferred = false;
+    const now = new Date();
+    const unix = Math.floor(now.getTime() / 1000);
 
-    try {
-        await interaction.deferReply();
-        deferred = true;
+    await collection.insertOne({
+      playerName,
+      userId,
+      channelId,
+      createdAt: now,
+      notified: false
+    });
 
-        const collection = db.collection(config.VMCSPARK_COLLECTION);
+    const embed = new EmbedBuilder()
+      .setTitle('VMC Spark ⛏️')
+      .setDescription(`\`\`\`\nYou’ll be notified when ${playerName} joins the Minecraft server!\`\`\``)
+      .addFields({
+        name: '⏱️ Time of Request',
+        value: `<t:${unix}:R>`,
+        inline: false
+      })
+      .setColor('Orange')
+      .setFooter({
+        text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
+        iconURL: interaction.user.displayAvatarURL()
+      })
+      .setTimestamp();
 
-        const alreadyTracking = await collection.findOne({ playerName, userId });
+    return interaction.editReply({ embeds: [embed] });
 
-        if (alreadyTracking) {
-            return interaction.editReply(`⚠️ You’ve already sparked **${playerName}** for Minecraft.\nYou'll be notified when they join! ⛏️`);
-        }
-
-        await collection.insertOne({
-            playerName,
-            userId,
-            channelId,
-            createdAt: new Date(),
-            notified: false
-        });
-
-        return interaction.editReply(`✅ You’ll be notified when **${playerName}** joins the Minecraft server! ⛏️`);
-
-    } catch (err) {
-        console.error("❌ Error in /mcspark command:", err);
-        if (deferred) {
-            return interaction.editReply('❌ Something went wrong while processing your Minecraft spark. Please try again later.');
-        } else {
-            return interaction.reply({
-                content: '❌ Failed to process your spark request. Try again.',
-                ephemeral: true
-            }).catch(() => {});
-        }
+  } catch (err) {
+    console.error("❌ Error in /mcspark command:", err);
+    if (deferred) {
+      return interaction.editReply('❌ Something went wrong while processing your Minecraft spark. Please try again later.');
+    } else {
+      return interaction.reply({
+        content: '❌ Failed to process your spark request. Try again.',
+        ephemeral: true
+      }).catch(() => {});
     }
+  }
 }
+
 
 
 
