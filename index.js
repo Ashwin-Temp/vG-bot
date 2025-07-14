@@ -140,29 +140,49 @@ client.on('interactionCreate', async (interaction) => {
 
 
 // Command functions
+
+function formatUptime(ms) {
+  const s = Math.floor((ms / 1000) % 60);
+  const m = Math.floor((ms / 1000 / 60) % 60);
+  const h = Math.floor((ms / 1000 / 60 / 60) % 24);
+  const d = Math.floor(ms / (1000 * 60 * 60 * 24));
+  return `${d}d ${h}h ${m}m ${s}s`;
+}
+
 async function botStatsCommand(interaction, db) {
   await interaction.deferReply();
 
+  const client = interaction.client;
+
+  // 🧮 System stats
+  const uptime = formatUptime(client.uptime);
+  const serverCount = client.guilds.cache.size;
+  const userCount = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
+
   // 📊 Get top commands
   const topCommands = await db.collection('command_counts')
-    .find().sort({ count: -1 }).limit(10).toArray();
+    .find().sort({ count: -1 }).limit(5).toArray()
+    .catch(() => []);
 
   const totalCommandUsage = await db.collection('command_counts')
-    .aggregate([
-      { $group: { _id: null, total: { $sum: "$count" } } }
-    ]).toArray();
+    .aggregate([{ $group: { _id: null, total: { $sum: "$count" } } }])
+    .toArray().catch(() => []);
 
   const totalUsage = totalCommandUsage[0]?.total || 0;
 
-  // 👤 Get top users
+  // 👥 Get top users
   const topUsers = await db.collection('user_counts')
-    .find().sort({ count: -1 }).limit(10).toArray();
+    .find().sort({ count: -1 }).limit(5).toArray()
+    .catch(() => []);
 
-  // 🎖️ Format commands
-  const cmdList = topCommands.map((c, i) =>
-    `\`${i + 1}.\` /${c._id.padEnd(10)} : **${c.count}** uses`).join('\n') || 'No data 😢';
+  // 🏆 Format top commands
+  const cmdList = topCommands.map((c, i) => {
+    const paddedCmd = `/${c._id}`.padEnd(15);
+    const paddedCount = String(c.count).padStart(4);
+    return `${i + 1}. ${paddedCmd} : ${paddedCount} uses`;
+  }).join('\n') || 'No command data available';
 
-  // 👥 Format users
+  // 👤 Format top users
   const userList = await Promise.all(topUsers.map(async (u, i) => {
     let name = `<@${u._id}>`;
     try {
@@ -174,30 +194,48 @@ async function botStatsCommand(interaction, db) {
         name = user.username;
       } catch {}
     }
-
-    return `\`${i + 1}.\` ${name.padEnd(20)} : **${u.count}** uses`;
+    const paddedName = name.padEnd(15);
+    const paddedCount = String(u.count).padStart(4);
+    return `${i + 1}. ${paddedName} : ${paddedCount} uses`;
   }));
 
-  
-  // 📊 Final embed
+
+  const updatedAt = new Date().toLocaleString('en-IN', {
+  timeZone: 'Asia/Kolkata',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric'
+});
+
+  // 📊 Create embed
   const embed = new EmbedBuilder()
-    .setTitle('📈 vG Bot Stats\n')
+    .setTitle('ㅤㅤㅤㅤ📈 vG Bot Stats')
     .setColor(0x5865f2)
-    .setDescription(`**\n📊 Total Bot Uses:** ${totalUsage.toLocaleString()} ⚡\n`)
+    .setDescription(
+      [
+        `**\n📊 Total Bot Uses:** \`${totalUsage.toLocaleString()}\` ⚡\n`,
+        `**⏱️ Uptime:** \`${uptime}\``,
+        `**🧭 Servers:** \`${serverCount}\``,
+        `**👥 Users Seen:** \`${userCount}\``,
+      ].join('\n')
+    )
     .addFields(
-      { name: '🏆 Top Commands', value: cmdList, inline: false },
-      { name: '👥 Most Active Users', value: userList.join('\n') || 'No user data 😶', inline: false }
+      { name: '🏆 Top Commands', value: '```' + cmdList + '```', inline: false },
+      { name: '👥 Most Active Users', value: '```' + (userList.join('\n') || 'No user data 😶') + '```', inline: false },
+      { name: ``, value: `**🕰️ Updated At:** ${updatedAt}`, inline: false }
     )
     .setFooter({
-        text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
-        iconURL: interaction.user.displayAvatarURL()
-      })
+      text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
+      iconURL: interaction.user.displayAvatarURL()
+    })
     .setTimestamp()
-    .setThumbnail(interaction.client.user.displayAvatarURL());
+    
 
   await interaction.editReply({ embeds: [embed] });
 }
-
 
 
 async function pingCommand(interaction, client) {
@@ -351,7 +389,24 @@ const IGNORED_CHANNELS = new Set([
   '1226706678267908167',
 ]);
 
-async function handleCommand(isPlayer, interaction) {
+async function handleCommand(isPlayer, interaction, db) {
+  const commandName = isPlayer ? 'players' : 'vmc';
+
+  // 🔢 Track usage manually
+  if (db) {
+    await db.collection('command_counts').updateOne(
+      { _id: commandName },
+      { $inc: { count: 1 } },
+      { upsert: true }
+    );
+
+    await db.collection('user_counts').updateOne(
+      { _id: interaction.user.id },
+      { $inc: { count: 1 } },
+      { upsert: true }
+    );
+  }
+
   return isPlayer
     ? getPlayers(interaction)
     : getMinecraftPlayers(interaction);
