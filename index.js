@@ -91,64 +91,47 @@ client.on('interactionCreate', async (interaction) => {
     if (!interaction.isCommand()) return;
 
     try {
-        switch (interaction.commandName) {
-            case 'players':
-                await getPlayers(interaction);
-                break;
-            case 'ip':
-                await getServerIP(interaction);
-                break;
-            case 'status':
-                await getServerStatus(interaction);
-                break;
-            case 'help':
-                await sendHelpEmbed(interaction);
-                break;
-            case 'top':
-                await getTop(interaction);
-                break;
-            case 'spark':
-                await sparkCommand(interaction);
-                break;
-             case 'mcspark':
-                await vmcSparkCommand(interaction);
-                break;
-            case 'cri':
-                await handleCriCommand(interaction);
-                break;
-            case 'playtime':
-                await getPlaytime(interaction);
-                break;
-            case 'highscore':
-                await getTopActivityPlayers(interaction);
-                break;
-            case 'set':
-                await setNameAndMergePlaytime(interaction);
-                break;
-            case 'vmc':
-                await getMinecraftPlayers(interaction);
-                break;
-            case 'trend':
-                await trendCommand(interaction); // New handler for the trend command
-                break;
-            case 'chat':
-                await chatCommand(interaction); // New handler for the trend command
-                break;
-            case 'mcstats':
-                await getMcstats(interaction);
-                break;
-            case 'vmcname':
-                await setMcname(interaction);
-                break;
-            case 'mctop':
-                await handleMcTop(interaction);
-                break;
-            case 'vgen':
-                await vgenCommand(interaction);
-                break;
-            default:
-                await interaction.reply('❓ Unknown command! Type `/help` for a list of available commands.');
-        }
+  // 🔍 Track command and user usage
+  if (interaction.commandName !== 'botstats') {
+  await db.collection('command_counts').updateOne(
+    { _id: interaction.commandName },
+    { $inc: { count: 1 } },
+    { upsert: true }
+  );
+
+  await db.collection('user_counts').updateOne(
+    { _id: interaction.user.id },
+    { $inc: { count: 1 } },
+    { upsert: true }
+  );
+}
+
+  // 🎯 Your actual command switch
+  switch (interaction.commandName) {
+    case 'players': await getPlayers(interaction); break;
+    case 'ip': await getServerIP(interaction); break;
+    case 'status': await getServerStatus(interaction); break;
+    case 'help': await sendHelpEmbed(interaction); break;
+    case 'top': await getTop(interaction); break;
+    case 'spark': await sparkCommand(interaction); break;
+    case 'mcspark': await vmcSparkCommand(interaction); break;
+    case 'cri': await handleCriCommand(interaction); break;
+    case 'playtime': await getPlaytime(interaction); break;
+    case 'highscore': await getTopActivityPlayers(interaction); break;
+    case 'set': await setNameAndMergePlaytime(interaction); break;
+    case 'vmc': await getMinecraftPlayers(interaction); break;
+    case 'trend': await trendCommand(interaction); break;
+    case 'chat': await chatCommand(interaction); break;
+    case 'mcstats': await getMcstats(interaction); break;
+    case 'vmcname': await setMcname(interaction); break;
+    case 'mctop': await handleMcTop(interaction); break;
+    case 'vgen': await vgenCommand(interaction); break;
+    case 'botstats': await botStatsCommand(interaction, db); break;
+    case 'ping': await pingCommand(interaction, client); break;
+
+    default:
+      await interaction.reply('❓ Unknown command! Type `/help` for a list of available commands.');
+  }
     } catch (err) {
         console.error('❌ Error handling interaction:', err);
         await interaction.reply('⚠️ An error occurred while processing your request. Please try again later.');
@@ -157,6 +140,135 @@ client.on('interactionCreate', async (interaction) => {
 
 
 // Command functions
+async function botStatsCommand(interaction, db) {
+  await interaction.deferReply();
+
+  // 📊 Get top commands
+  const topCommands = await db.collection('command_counts')
+    .find().sort({ count: -1 }).limit(10).toArray();
+
+  const totalCommandUsage = await db.collection('command_counts')
+    .aggregate([
+      { $group: { _id: null, total: { $sum: "$count" } } }
+    ]).toArray();
+
+  const totalUsage = totalCommandUsage[0]?.total || 0;
+
+  // 👤 Get top users
+  const topUsers = await db.collection('user_counts')
+    .find().sort({ count: -1 }).limit(10).toArray();
+
+  // 🎖️ Format commands
+  const cmdList = topCommands.map((c, i) =>
+    `\`${i + 1}.\` /${c._id.padEnd(10)} : **${c.count}** uses`).join('\n') || 'No data 😢';
+
+  // 👥 Format users
+  const userList = await Promise.all(topUsers.map(async (u, i) => {
+    let name = `<@${u._id}>`;
+    try {
+      const member = await interaction.guild.members.fetch(u._id);
+      name = member.displayName || member.user.username;
+    } catch {
+      try {
+        const user = await interaction.client.users.fetch(u._id);
+        name = user.username;
+      } catch {}
+    }
+
+    return `\`${i + 1}.\` ${name.padEnd(20)} : **${u.count}** uses`;
+  }));
+
+  
+  // 📊 Final embed
+  const embed = new EmbedBuilder()
+    .setTitle('📈 vG Bot Stats\n')
+    .setColor(0x5865f2)
+    .setDescription(`**\n📊 Total Bot Uses:** ${totalUsage.toLocaleString()} ⚡\n`)
+    .addFields(
+      { name: '🏆 Top Commands', value: cmdList, inline: false },
+      { name: '👥 Most Active Users', value: userList.join('\n') || 'No user data 😶', inline: false }
+    )
+    .setFooter({
+        text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
+        iconURL: interaction.user.displayAvatarURL()
+      })
+    .setTimestamp()
+    .setThumbnail(interaction.client.user.displayAvatarURL());
+
+  await interaction.editReply({ embeds: [embed] });
+}
+
+
+
+async function pingCommand(interaction, client) {
+  try {
+    await interaction.deferReply();
+
+    // First, send a temporary message to calculate client latency
+    const sent = await interaction.editReply({ content: '🏓 Pong!', fetchReply: true });
+
+    const clientLatency = Math.max(0, sent.createdTimestamp - interaction.createdTimestamp);
+    const apiLatency = Math.max(0, Math.round(client.ws.ping));
+    const uptime = formatUptime(client.uptime);
+    const memoryUsage = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2);
+    const serverCount = client.guilds.cache.size;
+    const userCount = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
+    const timeNow = new Date().toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour12: true,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+
+    const { EmbedBuilder } = require('discord.js');
+
+    const embed = new EmbedBuilder()
+      .setTitle('📡 Bot Status')
+      .setColor(0x00ffcc)
+      .addFields(
+        { name: '🕓 Client Latency', value: `\`${clientLatency}ms\``, inline: true },
+        { name: '🌐 API Latency', value: `\`${apiLatency}ms\``, inline: true },
+        { name: '⏱️ Uptime', value: `\`${uptime}\``, inline: true },
+        { name: '🧭 Servers', value: `\`${serverCount}\``, inline: true },
+        { name: '👥 Users Seen', value: `\`${userCount}\``, inline: true },
+        { name: '💾 Memory Usage', value: `\`${memoryUsage} MB\``, inline: true },
+        { name: '🕰️ Time (IST)', value: `\`${timeNow}\`` }
+      )
+      .setFooter({
+  text:
+    clientLatency > 1000 ? '💀 This bot runs on potatoes.' :
+    clientLatency > 600  ? '🐢 Bro... even snails are faster.' :
+    clientLatency > 300  ? '🥱 Yawning... that delay was real.' :
+    clientLatency > 100  ? '⚡ Zooming... kinda.' :
+                           '🚀 Bot running faster than your crush leaving you.'
+});
+
+
+    // Final embed replaces the pong message
+    await interaction.editReply({ content: null, embeds: [embed] });
+
+  } catch (err) {
+    console.error('pingCommand error:', err);
+    await interaction.editReply({
+      content: '❌ Error getting bot status. Try again later.',
+    });
+  }
+}
+
+function formatUptime(ms) {
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / (1000 * 60)) % 60);
+  const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+}
+
+
 
 
 async function vmcSparkCommand(interaction) {
