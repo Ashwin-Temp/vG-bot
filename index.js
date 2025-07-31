@@ -1082,7 +1082,7 @@ async function getPlayers(interaction) {
     const cyan = `${ESC}36m`;
     const magenta = `${ESC}35m`;
 
-    const MAX_NAME_LENGTH = 17; // reduced by 1
+    const MAX_NAME_LENGTH = 17;
 
     const querySAMP = async () => {
       const attempt = () =>
@@ -1097,31 +1097,28 @@ async function getPlayers(interaction) {
         try {
           const result = await Promise.race([
             attempt(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 1000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 2000)) // 2s timeout
           ]);
           return result;
         } catch (err) {
+          console.warn(`Attempt ${i + 1} failed:`, err.message);
           if (i === 2) throw err;
-          await new Promise(res => setTimeout(res, 300));
+          await new Promise(res => setTimeout(res, 500)); // wait before retry
         }
       }
     };
 
     const response = await querySAMP();
+    const lastUpdatedUnix = Math.floor(Date.now() / 1000);
 
     if (response.players && response.players.length > 0) {
-      // const rowLine = '|'+ '✿'.repeat(21) + ' |' +'\n';
-      const rowLine = '✿'.repeat(23) +'\n';
-      const tableHeader = 
-  `| ${red}# ${reset} | ${red}Name${reset}${' '.repeat(MAX_NAME_LENGTH - 7)} 🎮 | ${red}Score${reset} |\n`;
-
-
+      const rowLine = '✿'.repeat(23) + '\n';
+      const tableHeader = `| ${red}# ${reset} | ${red}Name${reset}${' '.repeat(MAX_NAME_LENGTH - 7)} 🎮 | ${red}Score${reset} |\n`;
 
       const tableRows = response.players.map(p => {
         let name = p.name;
         const lower = name.toLowerCase();
 
-        // Assign role emoji
         const emoji =
           /axis|flame|cruella/.test(lower) ? '👑' :
           /sheikh/.test(lower) ? '🪩' :
@@ -1130,9 +1127,9 @@ async function getPlayers(interaction) {
           /sparkle/.test(lower) ? '✨' :
           /pluto/.test(lower) ? '🎖️' :
           /\[vg\]/i.test(name) ? '💠' :
-          '🌀'; // normal player
+          '🌀';
 
-        const nameSpace = MAX_NAME_LENGTH - 2; // 2 spaces reserved for emoji
+        const nameSpace = MAX_NAME_LENGTH - 2;
         if (name.length > nameSpace) {
           name = name.slice(0, nameSpace - 3) + '...';
         }
@@ -1153,26 +1150,22 @@ async function getPlayers(interaction) {
 
       const playerTable = '```ansi\n' + tableHeader + rowLine + tableRows.join('\n') + '\n```';
 
-      const lastUpdatedUnix = Math.floor(Date.now() / 1000); // current timestamp in seconds
-
-const embed = new EmbedBuilder()
-  .setColor(config.HEX_COLOR)
-  .setTitle(`🛡️\u200B  Valiant Roleplay/Freeroam 🛡️`)
-  .setDescription(`\u200B\n🌍 **Players Online:** ${response.players.length}/50\n${playerTable}`)
-
-  .addFields([
-    {
-      name: `Status: 🟢`,
-      value: `**Updated:** <t:${lastUpdatedUnix}:R>🧿 `, // shows "a few seconds ago"
-      inline: false
-    }
-  ])
-  .setFooter({
-    text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
-    iconURL: interaction.user.displayAvatarURL()
-  })
-  .setTimestamp();
-
+      const embed = new EmbedBuilder()
+        .setColor(config.HEX_COLOR)
+        .setTitle(`🛡️\u200B  Valiant Roleplay/Freeroam 🛡️`)
+        .setDescription(`\u200B\n🌍 **Players Online:** ${response.players.length}/50\n${playerTable}`)
+        .addFields([
+          {
+            name: `Status: 🟢`,
+            value: `**Updated:** <t:${lastUpdatedUnix}:R>🧿 `,
+            inline: false
+          }
+        ])
+        .setFooter({
+          text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
+          iconURL: interaction.user.displayAvatarURL()
+        })
+        .setTimestamp();
 
       await interaction.followUp({ embeds: [embed] });
 
@@ -1182,12 +1175,12 @@ const embed = new EmbedBuilder()
         .setTitle(`🛡️\u200B  Valiant Roleplay/Freeroam 🛡️`)
         .setDescription('```😴 No players are currently online.```')
         .addFields([
-    {
-      name: `Status: 🟢`,
-      value: `**Updated:** <t:${lastUpdatedUnix}:R>🧿 `, // shows "a few seconds ago"
-      inline: false
-    }
-  ])
+          {
+            name: `Status: 🟢`,
+            value: `**Updated:** <t:${lastUpdatedUnix}:R>🧿 `,
+            inline: false
+          }
+        ])
         .setFooter({
           text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
           iconURL: interaction.user.displayAvatarURL()
@@ -1200,10 +1193,17 @@ const embed = new EmbedBuilder()
   } catch (error) {
     console.error('Error fetching player list:', error);
 
+    let errorMessage = 'Give it another shot! 🔄';
+    if (error.message.includes('Query timeout')) {
+      errorMessage = '⏱️ The server took too long to respond.';
+    } else if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
+      errorMessage = '🚫 The SAMP server is unreachable. Check /status.';
+    }
+
     const errorEmbed = new EmbedBuilder()
       .setColor('Red')
-      .setTitle('⚠️ Uh-oh! Something went sideways!')
-      .setDescription('Give it another shot! 🔄')
+      .setTitle('⚠️ Uh-oh! Something went wrong!')
+      .setDescription(errorMessage)
       .setTimestamp();
 
     await interaction.followUp({ embeds: [errorEmbed] });
