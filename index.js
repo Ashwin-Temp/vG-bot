@@ -1179,10 +1179,17 @@ const embed = new EmbedBuilder()
     } else {
       const noPlayersEmbed = new EmbedBuilder()
         .setColor(config.HEX_COLOR)
-        .setTitle(`${config.SERVER_NAME}`)
-        .setDescription('```😴 No players are currently online.\nCome back soon! 💤```')
+        .setTitle(`🛡️\u200B  Valiant Roleplay/Freeroam 🛡️`)
+        .setDescription('```😴 No players are currently online.```')
+        .addFields([
+    {
+      name: `Status: 🟢`,
+      value: `**Updated:** <t:${lastUpdatedUnix}:R>🧿 `, // shows "a few seconds ago"
+      inline: false
+    }
+  ])
         .setFooter({
-          text: `Requested by ${interaction.member?.displayName || interaction.user.username} | Made with ✨`,
+          text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
           iconURL: interaction.user.displayAvatarURL()
         })
         .setTimestamp();
@@ -1202,7 +1209,6 @@ const embed = new EmbedBuilder()
     await interaction.followUp({ embeds: [errorEmbed] });
   }
 }
-
 
 
 
@@ -1519,7 +1525,7 @@ async function getServerStatus(interaction) {
             if (error) {
                 embed.setColor(config.OFFLINE_COLOR)
                     .setDescription('**Status:** 🔴 Offline')
-                    .addFields({ name: 'Error', value: 'I will let you know when 🟢' });
+                    .addFields({ name: 'Error', value: '⚠️ Try again later ⚠️' });
             } else {
                 embed.setColor(config.HEX_COLOR)
                     .setDescription('**Status:** 🟢 Online')
