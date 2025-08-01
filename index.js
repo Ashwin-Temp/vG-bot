@@ -311,7 +311,7 @@ async function vmcSparkCommand(interaction) {
 const cooldowns = new Map();
 
 // Constants
-const COOLDOWN_DURATION = 5000; // 5 seconds
+const COOLDOWN_DURATION = 3000; // 5 seconds
 const REPLY_TIMEOUT = 3000;     // 3 seconds
 const SPECIAL_SERVER_ID = '1068500987519709184';
 const OTHER_BOT_ID = '1069232765121351770';
@@ -354,8 +354,8 @@ client.on('messageCreate', async (message) => {
   const guildId = message.guild.id;
   const channelId = message.channel.id;
 
-  const isPlayer = ['p', 'players'].includes(content);
-  const isVMC = ['v', 'vmc', 'mc'].includes(content);
+  const isPlayer = ['p', 'players','play','player', 'showplayer','showp', 'samp'].includes(content);
+  const isVMC = ['v', 'vmc', 'mc','minecraft', 'spencer', 'valiantmc', 'valiantminecraft', 'showv'].includes(content);
 
   if (!isPlayer && !isVMC) return;                // ❌ Not a tracked command
   if (IGNORED_CHANNELS.has(channelId)) return;    // ❌ Channel ignored
