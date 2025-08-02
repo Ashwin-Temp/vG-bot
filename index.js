@@ -305,18 +305,15 @@ async function vmcSparkCommand(interaction) {
   }
 }
 
-
-
-
 const cooldowns = new Map();
 
 // Constants
-const COOLDOWN_DURATION = 3000; // 5 seconds
+const COOLDOWN_DURATION = 3000; // 3 seconds
 const REPLY_TIMEOUT = 3000;     // 3 seconds
 const SPECIAL_SERVER_ID = '1068500987519709184';
 const OTHER_BOT_ID = '1069232765121351770';
 
-// Channels where p/v/vmc/mc should be ignored
+// Channels where p/vmc/mc should be ignored
 const IGNORED_CHANNELS = new Set([
   '1226705208545906754',
   '1226706678267908167',
@@ -324,7 +321,6 @@ const IGNORED_CHANNELS = new Set([
 
 // Handles p/vmc message command logic
 async function handleCommand(isPlayer, interaction, db) {
-  // Track usage in DB
   const commandName = isPlayer ? 'players' : 'vmc';
   const userId = interaction.user.id;
 
@@ -340,7 +336,6 @@ async function handleCommand(isPlayer, interaction, db) {
     { upsert: true }
   );
 
-  // Execute command
   return isPlayer
     ? getPlayers(interaction)
     : getMinecraftPlayers(interaction);
@@ -354,24 +349,42 @@ client.on('messageCreate', async (message) => {
   const guildId = message.guild.id;
   const channelId = message.channel.id;
 
-  const isPlayer = ['p', 'players','play','player', 'showplayer','showp', 'samp'].includes(content);
-  const isVMC = ['v', 'vmc', 'mc','minecraft', 'spencer', 'valiantmc', 'valiantminecraft', 'showv'].includes(content);
+  const isPlayer = ['p', 'players', 'play', 'player', 'showplayer', 'showp', 'samp'].includes(content);
+  const isVMC = ['v', 'vmc', 'mc', 'minecraft', 'spencer', 'valiantmc', 'valiantminecraft', 'showv'].includes(content);
 
-  if (!isPlayer && !isVMC) return;                // ❌ Not a tracked command
-  if (IGNORED_CHANNELS.has(channelId)) return;    // ❌ Channel ignored
-  if (cooldowns.has(userId)) return;              // ❌ Cooldown active
+  if (!isPlayer && !isVMC) return;
+  if (IGNORED_CHANNELS.has(channelId)) return;
+  if (cooldowns.has(userId)) return;
 
   cooldowns.set(userId, true);
   setTimeout(() => cooldowns.delete(userId), COOLDOWN_DURATION);
 
+  // Setup fake interaction
   const fakeInteraction = {
     user: message.author,
     channel: message.channel,
-    deferReply: async () => {},
-    followUp: (data) => message.reply(data),
     member: message.member,
     guild: message.guild,
-    editReply: (data) => message.reply(data),
+  };
+
+  let replyMessage = null;
+
+  fakeInteraction.deferReply = async () => {};
+
+  fakeInteraction.followUp = async (data) => {
+    if (!replyMessage) {
+      replyMessage = await message.reply(data);
+    }
+    return replyMessage;
+  };
+
+  fakeInteraction.editReply = async (data) => {
+    if (replyMessage) {
+      return replyMessage.edit(data);
+    } else {
+      replyMessage = await message.reply(data);
+      return replyMessage;
+    }
   };
 
   try {
@@ -410,8 +423,6 @@ client.on('messageCreate', async (message) => {
     } catch {}
   }
 });
-
-
 
 
 const dailyVgenUsage = new Map(); // userId => { count, date }
