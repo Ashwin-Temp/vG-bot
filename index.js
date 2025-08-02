@@ -1057,7 +1057,7 @@ function buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, is
             },
             {
                 name: 'vMC IP',
-                value: `\`\`\`\nplay.jinxko.com\n\nindia.jinxko.com\`\`\``,
+                value: `\`\`\`\nplay.jinxko.com\`\`\``,
                 inline: false
             }
         )
@@ -1496,7 +1496,7 @@ async function getServerIP(interaction) {
         .setDescription(`**Connect to Valiant Community\u2003\u2003\u2003**`)
         .addFields(
             { name: 'SAMP Server IP', value: `\`\`\`\n${config.SAMP_SERVER_IP}:${config.SAMP_SERVER_PORT}\n\`\`\`` },
-            { name: 'vMC Server IP', value: '```play.jinxko.com \nindia.jinxko.com```', inline: true }
+            { name: 'vMC Server IP', value: '```play.jinxko.com```', inline: true }
         )
         .setFooter({ text: `Requested by ${interaction.member?.displayName || interaction.user.username} \n • Made with ✨ `, iconURL: interaction.user.displayAvatarURL() })
         .setTimestamp();
