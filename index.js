@@ -371,6 +371,7 @@ client.on('messageCreate', async (message) => {
     followUp: (data) => message.reply(data),
     member: message.member,
     guild: message.guild,
+    editReply: (data) => message.reply(data),
   };
 
   try {
@@ -978,8 +979,8 @@ async function getMinecraftPlayers(interaction) {
     try {
         await interaction.deferReply();
 
-        // Primary: Cloudflare Worker API
-        const res = await fetch('https://my-worker.valiantgaming.workers.dev/');
+        // 🔹 Primary Cloudflare Worker API
+        const res = await fetch('https://my-worker-v2.valiantgaming.workers.dev/');
         if (!res.ok) throw new Error(`Worker error ${res.status}`);
         const { onlinePlayers = [], status } = await res.json();
 
@@ -1003,10 +1004,81 @@ async function getMinecraftPlayers(interaction) {
         const embed = buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, false);
         await interaction.followUp({ embeds: [embed] });
 
-    } catch (err) {
-        console.warn('Primary Worker API failed, falling back:', err.message);
+        // 🔁 Fetch /get and determine activity summary
+        try {
+            const trackRes = await fetch('https://my-worker-v2.valiantgaming.workers.dev/get');
+            const data = await trackRes.json();
+            const entries = Object.entries(data || {});
+            let recentPlayer = null;
+            let mostActive = null;
 
-        // Fallback: mcsrvstat.us API
+            if (entries.length > 0) {
+                // ✅ Most Active (highest playtime)
+                mostActive = entries.sort((a, b) => {
+                    const [aH = 0, aM = 0] = a[1].playtime?.match(/\d+/g)?.map(Number) || [];
+                    const [bH = 0, bM = 0] = b[1].playtime?.match(/\d+/g)?.map(Number) || [];
+                    return (bH * 60 + bM) - (aH * 60 + aM);
+                })[0][0];
+
+                // ✅ Most Recent (latest joinedAt)
+                recentPlayer = entries.sort((a, b) => {
+                    const [ah = 0, am = 0] = a[1].joinedAt?.split(':').map(Number) || [];
+                    const [bh = 0, bm = 0] = b[1].joinedAt?.split(':').map(Number) || [];
+                    return (bh * 60 + bm) - (ah * 60 + am);
+                })[0][0];
+
+                // 💾 Cache recent player
+                if (interaction.client) {
+                    interaction.client.recentCache = recentPlayer;
+                }
+
+                embed.addFields({
+                    name: '',
+                    value: `**Most Active:** ${mostActive}\n**Recent Player:** ${recentPlayer}`,
+                    inline: false
+                });
+
+            } else {
+                // ❌ /get is empty — fallback
+                recentPlayer = interaction.client?.recentCache;
+
+                if (!recentPlayer) {
+                    const fallbackRes = await fetch('https://www.jinxko.com/api?endpoint=public/playerRoster');
+                    const rosterJson = await fallbackRes.json();
+
+                    if (rosterJson.status === 'success') {
+                        const mostRecent = rosterJson.roster.sort((a, b) =>
+                            new Date(b.lastLoginDate) - new Date(a.lastLoginDate)
+                        )[0];
+                        recentPlayer = mostRecent?.username;
+
+                        if (recentPlayer && interaction.client) {
+                            interaction.client.recentCache = recentPlayer;
+                        }
+                    }
+                }
+
+                if (recentPlayer) {
+                    embed.addFields({
+                        name: 'Activity Summary',
+                        value: `**Recent Player:** ${recentPlayer}`,
+                        inline: false
+                    });
+                }
+            }
+
+            if (recentPlayer || mostActive) {
+                await interaction.editReply({ embeds: [embed] });
+            }
+
+        } catch (err) {
+            console.warn("Activity summary failed:", err);
+        }
+
+    } catch (err) {
+        console.warn('Primary API failed, falling back:', err.message);
+
+        // 🔴 Fallback to mcsrvstat.us API
         try {
             const res = await fetch('https://api.mcsrvstat.us/2/play.jinxko.com:25566');
             if (!res.ok) throw new Error(`Fallback API error: ${res.status}`);
@@ -1040,7 +1112,7 @@ async function getMinecraftPlayers(interaction) {
     }
 }
 
-// 🔧 Helper to build embed
+// 🧱 Embed Builder Helper
 function buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, isFallback) {
     return new EmbedBuilder()
         .setColor('#00ff99')
@@ -1067,6 +1139,7 @@ function buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, is
         })
         .setTimestamp();
 }
+
 
 
 async function getPlayers(interaction) {
