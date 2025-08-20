@@ -896,48 +896,33 @@ async function setMcname(interaction) {
 
 async function chatCommand(interaction) {
     const prompt = interaction.options.getString('message');
-    const userDisplayName = interaction.member?.displayName || interaction.user.username;  // Get the user's display name
-    
-    // Always defer immediately to prevent the 'Unknown interaction' error
+    const userDisplayName = interaction.member?.displayName || interaction.user.username;
+
+    // Always defer immediately to prevent 'Unknown interaction' error
     await interaction.deferReply();
 
     try {
-        // Customize system message to naturally reference the user's display name
-       let systemMessage = `You are the vG Bot, a witty, humorous, and helpful assistant for the vG SA-MP Discord server. Keep replies short to medium, humorous, but easy to understand. Just reply what they ask with humour and joke. Only include server details if the user asks. You were developed by a beautiful girl named [vG]Sparkle. If they are [vG]Sparkle, acknowledge her awesomeness and respond to her like she is your creator. The SA-MP server IP is 163.172.105.21:7777, and the server owners are [vG]Axis, [vG]Dylan, and [vG]Cruella. You are part of the Discord bot, not the game server itself. We also have vMC Minecraft server relased and has ip play.jinxko.com. vMC is developed by Spencer.\n\n`;
+        // System prompt tailored for humor, sarcasm, and Discord context
+        let systemMessage = `You are the vG Bot, a witty, humorous, and sarcastic assistant for the vG SA-MP Discord server. Keep replies short to medium, funny, and easy to understand. Only provide server info if asked. You were created by [vG]Sparkle. If the user is [vG]Sparkle, acknowledge her awesomeness and treat her as your creator. Make jokes wherever possible.
 
-       systemMessage += `If anyone ask about the staff of server tell them these, Here is the **vG Server Staff Team**: [vG]Axis is (Head of Developments), [vG]Flame is (Head of Staff), [vG]Cruella is (Head of Clan / Head of Mapping), [vG]Sheikh is (Head of Events), [vG]Atk is (Administrator), [vG]Bam is (Senior Moderator), [vG]Sparkle is (Moderator and bot developer), [vG]Pluto is (Trail Moderator) also include your humour and joke with every reply you do. \n\n`;
+Server IPs: SA-MP: 163.172.105.21:7777, Minecraft: play.jinxko.com (developed by Spencer)
 
-       systemMessage += `If anyone asks about the **Yakuza Organization members**, here’s the **Yakuza Team**: [VG]Noir is the **Oyabun** (Leader), [vG]p.k is the **Wakagashira** (Co-Leader), [vG]Sparkle is the **Shateigashira**, [vG]FOX is the **Kyodai**, [vG]Storm is the **Shatei**. Don’t mess with them, or you’ll be swimming with the fishes! 😎 \n\n`;
+**vG Server Staff Team**: [vG]Axis (Head of Developments), [vG]Flame (Head of Staff), [vG]Cruella (Head of Clan / Mapping), [vG]Sheikh (Head of Events), [vG]Atk (Administrator), [vG]Bam (Senior Moderator), [vG]Sparkle (Moderator & bot dev), [vG]Pluto (Trail Moderator)
 
-        systemMessage += `If anyone asks about the **SAPD** (Cops), here’s the **SAPD Team**: [vG]Sheikh is the **Leader**, [vG]Atk is the **Deputy Commissioner**, epep is the **Captain**, [vG]BAM is the **Lieutenant**, [vG]Mic is the **Commander**, [vG]Muhammad is **Officer 3**, [vG]Ace is **Cadet**, [vG]Pluto is **Officer 2**, Wax is **Officer**, and [vG]SD is **Officer 1**. Don’t worry, they’ll catch you if you break the law... even if it’s just for being too cool. 😎👮 \n\n`;
+**Yakuza Team**: [VG]Noir (Oyabun), [vG]p.k (Wakagashira), [vG]Sparkle (Shateigashira), [vG]FOX (Kyodai), [vG]Storm (Shatei) — don’t mess with them!
 
+**SAPD Team**: [vG]Sheikh (Leader), [vG]Atk (Deputy Commissioner), epep (Captain), [vG]BAM (Lieutenant), [vG]Mic (Commander), [vG]Muhammad (Officer 3), [vG]Ace (Cadet), [vG]Pluto (Officer 2), Wax (Officer), [vG]SD (Officer 1) — they’ll catch you even if you’re too cool 😎👮
 
-        systemMessage += `If the user asks for something like "who is playing in the server," remind them to use the **/players** command to see the online players.'\n\n`;
+Commands hints: /players, /status, /top, /help
 
-        systemMessage += `2. **/status**: Provides detailed information about the vG SA-MP server, such as whether the server is online or offline. \n`;
-        systemMessage += `3. **/top**: View the top players in terms of playtime or score, showing who has played the most or achieved the best scores in the vG SA-MP server.\n`;
-        systemMessage += ` If someone asks you about the commands you know, just say use the **/help** command to know all the commands.\n\n`;
+The user's display name is ${userDisplayName}. Respond in a fun, sarcastic, and engaging way.`;
 
-
-
-
-
-// Final personalization
-        systemMessage += `The user's display name is ${userDisplayName}. Make sure to respond in a fun, engaging way that suits the user's vibe. If they are [vG]Sparkle, acknowledge her awesomeness and respond to her like she is your creator. If they ask something funny, feel free to joke along!`;
-
-
-        // Make the request to the Groq AI service using axios
+        // Groq free model for general chatting
         const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "gemma2-9b-it", // Update this with the Groq model you are using
+            model: "llama-3.3-70b-versatile", // <-- replace with free Groq model ID
             messages: [
-                {
-                    role: "system",
-                    content: systemMessage
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
+                { role: "system", content: systemMessage },
+                { role: "user", content: prompt }
             ]
         }, {
             headers: {
@@ -950,33 +935,23 @@ async function chatCommand(interaction) {
 
         let reply = response.data.choices[0].message.content;
 
-        // Create the embed for the reply
         const embed = new EmbedBuilder()
             .setColor('#00CC99')
-            .setTitle(prompt.length > 250 ? prompt.slice(0, 250) + '...' : prompt) // safely use question as title
-            .addFields(
-                { name: 'vG Bot', value: reply.slice(0, 1024), inline: false }
-            )
-            .setFooter({
-                text: `Asked by ${interaction.member?.displayName || interaction.user.username}`,
-                iconURL: interaction.user.displayAvatarURL()
-            })
+            .setTitle(prompt.length > 250 ? prompt.slice(0, 250) + '...' : prompt)
+            .addFields({ name: 'vG Bot', value: reply.slice(0, 1024), inline: false })
+            .setFooter({ text: `Asked by ${userDisplayName}`, iconURL: interaction.user.displayAvatarURL() })
             .setTimestamp();
 
-        // Reply after the interaction is deferred
         await interaction.editReply({ embeds: [embed] });
 
     } catch (err) {
         console.error('❌ /chat error:', err);
-
-        // Error handling
         const errorEmbed = new EmbedBuilder()
             .setColor('Red')
             .setTitle('⚠️ Error')
             .setDescription('I am Exhausted! DND')
             .setTimestamp();
 
-        // Make sure to only send one reply
         if (!interaction.replied) {
             await interaction.editReply({ embeds: [errorEmbed] });
         } else {
@@ -984,7 +959,6 @@ async function chatCommand(interaction) {
         }
     }
 }
-
 
 async function getMinecraftPlayers(interaction) {
     try {
