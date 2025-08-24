@@ -319,7 +319,7 @@ const IGNORED_CHANNELS = new Set([
   '1226706678267908167',
 ]);
 
-// Handles p/vmc message command logic
+// Handles p/vmc/ip message command logic
 async function handleCommand(commandType, interaction, db) {
   const commandName =
     commandType === 'player' ? 'players' :
@@ -347,11 +347,6 @@ async function handleCommand(commandType, interaction, db) {
   } else if (commandType === 'ip') {
     return getServerIP(interaction);
   }
-}
-
-// New IP handler
-async function getServerIP(interaction) {
-  return interaction.followUp("🌐 Server IP: `play.example.com`");
 }
 
 client.on('messageCreate', async (message) => {
@@ -384,6 +379,14 @@ client.on('messageCreate', async (message) => {
   let replyMessage = null;
 
   fakeInteraction.deferReply = async () => {};
+
+  // Added reply so getServerIP() works without changes
+  fakeInteraction.reply = async (data) => {
+    if (!replyMessage) {
+      replyMessage = await message.reply(data);
+    }
+    return replyMessage;
+  };
 
   fakeInteraction.followUp = async (data) => {
     if (!replyMessage) {
