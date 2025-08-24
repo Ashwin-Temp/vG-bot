@@ -313,15 +313,19 @@ const REPLY_TIMEOUT = 3000;     // 3 seconds
 const SPECIAL_SERVER_ID = '1068500987519709184';
 const OTHER_BOT_ID = '1069232765121351770';
 
-// Channels where p/vmc/mc should be ignored
+// Channels where p/vmc/mc/ip should be ignored
 const IGNORED_CHANNELS = new Set([
   '1226705208545906754',
   '1226706678267908167',
 ]);
 
 // Handles p/vmc message command logic
-async function handleCommand(isPlayer, interaction, db) {
-  const commandName = isPlayer ? 'players' : 'vmc';
+async function handleCommand(commandType, interaction, db) {
+  const commandName =
+    commandType === 'player' ? 'players' :
+    commandType === 'vmc'    ? 'vmc' :
+    'ip';
+
   const userId = interaction.user.id;
 
   await db.collection('command_counts').updateOne(
@@ -336,9 +340,18 @@ async function handleCommand(isPlayer, interaction, db) {
     { upsert: true }
   );
 
-  return isPlayer
-    ? getPlayers(interaction)
-    : getMinecraftPlayers(interaction);
+  if (commandType === 'player') {
+    return getPlayers(interaction);
+  } else if (commandType === 'vmc') {
+    return getMinecraftPlayers(interaction);
+  } else if (commandType === 'ip') {
+    return getServerIP(interaction);
+  }
+}
+
+// New IP handler
+async function getServerIP(interaction) {
+  return interaction.followUp("🌐 Server IP: `play.example.com`");
 }
 
 client.on('messageCreate', async (message) => {
@@ -350,9 +363,10 @@ client.on('messageCreate', async (message) => {
   const channelId = message.channel.id;
 
   const isPlayer = ['p', 'players', 'play', 'player', 'showplayer', 'showp', 'samp'].includes(content);
-  const isVMC = ['v', 'vmc', 'mc', 'minecraft', 'spencer', 'valiantmc', 'valiantminecraft', 'showv'].includes(content);
+  const isVMC    = ['v', 'vmc', 'mc', 'minecraft', 'spencer', 'valiantmc', 'valiantminecraft', 'showv'].includes(content);
+  const isIP     = ['ip', 'serverip', 'getip', 'address'].includes(content);
 
-  if (!isPlayer && !isVMC) return;
+  if (!isPlayer && !isVMC && !isIP) return;
   if (IGNORED_CHANNELS.has(channelId)) return;
   if (cooldowns.has(userId)) return;
 
@@ -389,7 +403,7 @@ client.on('messageCreate', async (message) => {
 
   try {
     if (guildId === SPECIAL_SERVER_ID) {
-      const triggerText = isPlayer ? '.p' : '.mc';
+      const triggerText = isPlayer ? '.p' : isVMC ? '.mc' : '.ip';
       const triggerMsg = await message.reply(triggerText);
 
       try {
@@ -408,13 +422,25 @@ client.on('messageCreate', async (message) => {
         console.log(`✅ ${triggerText} — External bot responded.`);
       } catch {
         console.log(`⏱️ No reply from other bot, fallback triggered.`);
-        await handleCommand(isPlayer, fakeInteraction, db);
+        if (isPlayer) {
+          await handleCommand('player', fakeInteraction, db);
+        } else if (isVMC) {
+          await handleCommand('vmc', fakeInteraction, db);
+        } else if (isIP) {
+          await handleCommand('ip', fakeInteraction, db);
+        }
       } finally {
         await triggerMsg.delete().catch(() => {});
       }
 
     } else {
-      await handleCommand(isPlayer, fakeInteraction, db);
+      if (isPlayer) {
+        await handleCommand('player', fakeInteraction, db);
+      } else if (isVMC) {
+        await handleCommand('vmc', fakeInteraction, db);
+      } else if (isIP) {
+        await handleCommand('ip', fakeInteraction, db);
+      }
     }
   } catch (err) {
     console.error('❌ Error handling command:', err);
