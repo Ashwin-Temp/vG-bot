@@ -21,9 +21,11 @@
     "moment-timezone": "^0.5.48",
     "mongodb": "^6.15.0",
     "mongoose": "^8.13.2",
+    "node-cache": "^5.1.2",
     "node-cron": "^3.0.3",
     "node-fetch": "^2.7.0",
     "npm": "^11.3.0",
+    "poe-node-api": "^0.0.8-rc2",
     "samp-query": "^0.1.5",
     "undici": "^7.8.0"
   }
