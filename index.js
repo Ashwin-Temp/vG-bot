@@ -6,6 +6,8 @@ const { generateTrendTodayGraph } = require('./generateTrendGraph');
 const { MongoClient } = require('mongodb');  // MongoDB integration
 const axios = require('axios');
 const fetch = require('node-fetch');
+const NodeCache = require("node-cache");
+const myCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
 const client = new Client({
     intents: [
@@ -923,6 +925,74 @@ async function setMcname(interaction) {
 }
 
 
+
+
+
+// Command functions
+client.on('messageCreate', (message) => {
+    // Other bot logic, if you have any
+    
+    // Call the function to check for the "hacker" word
+    handleHackerDetection(message);
+});
+
+const hackerCooldowns = {};
+
+// User IDs of the people you want to mention.
+// IMPORTANT: Replace these with the actual user IDs.
+const userIDsToMention = [
+    '785077198338916412',
+    '836294168632361000',
+    '936474701000224768'
+];
+
+// Cooldown duration in milliseconds (3 hours)
+
+/**
+ * Handles messages and mentions users when the word "hacker" is used.
+ * The mentions are limited to once every 3 hours.
+ * @param {object} message The Discord message object.
+ */
+const HACKER_COOLDOWN_DURATION = 3 * 60 * 60 * 1000;
+
+// List of words to check for, including typos
+const HACKER_TYPOS = ['hacker', 'hackker', 'haker', 'hakcer', 'haccker'];
+
+/**
+ * Handles messages and mentions users when the word "hacker" is used.
+ * The mentions are limited to once every 3 hours.
+ * @param {object} message The Discord message object.
+ */
+function handleHackerDetection(message) {
+    // Ignore bot messages to prevent loops
+    if (message.author.bot) return;
+
+    // Check if the message contains the word "hacker" or its common typos (case-insensitive)
+    const hasHackerWord = HACKER_TYPOS.some(word => message.content.toLowerCase().includes(word));
+
+    if (hasHackerWord) {
+        const lastMentionTime = hackerCooldowns.lastMentionTime || 0;
+        const currentTime = Date.now();
+
+        // Check if the cooldown period has passed
+        if (currentTime - lastMentionTime >= HACKER_COOLDOWN_DURATION) {
+            // Get the mentions as a string
+            const mentions = userIDsToMention.map(id => `<@${id}>`).join(' ');
+
+            // Send the message with the mentions
+            message.channel.send(`A wild hacker appears! ${mentions}`);
+
+            // Reset the cooldown timer
+            hackerCooldowns.lastMentionTime = currentTime;
+        } else {
+            // If the cooldown is still active, send a polite message
+            message.channel.send("Admins have been notified. Please hold tight!");
+        }
+    }
+}
+
+
+
 async function chatCommand(interaction) {
     const prompt = interaction.options.getString('message');
     const userDisplayName = interaction.member?.displayName || interaction.user.username;
@@ -931,28 +1001,47 @@ async function chatCommand(interaction) {
     await interaction.deferReply();
 
     try {
+        const userId = interaction.user.id;
+        
+        // Retrieve the conversation history for this user from the cache
+        let conversationHistory = myCache.get(userId) || [];
+
+        // Add the current user's prompt to the history
+        conversationHistory.push({ role: "user", content: prompt });
+        
+        // Limit the history to the last 10 messages to prevent it from getting too long
+        if (conversationHistory.length > 10) {
+            conversationHistory = conversationHistory.slice(-10);
+        }
+
         // System prompt tailored for humor, sarcasm, and Discord context
-        let systemMessage = `You are the vG Bot, a witty, humorous, and sarcastic assistant for the vG SA-MP Discord server. Keep replies short to medium, funny, and easy to understand. Only provide server info if asked. You were created by [vG]Sparkle. If the user is [vG]Sparkle, acknowledge her awesomeness and treat her as your creator. Make jokes wherever possible.
+        let systemMessage = `You are the vG Bot, a witty, humorous, and sarcastic assistant for the vG SA-MP Discord server. Keep replies short to medium, funny, and easy to understand. Only provide server info if asked. You were created by [vG]Sparkle. If the user is [vG]Sparkle, treat her as your creator. Make jokes wherever possible.
 
 Server IPs: SA-MP: 163.172.105.21:7777, Minecraft: play.jinxko.com (developed by Spencer)
 
-**vG Server Staff Team**: [vG]Axis (Head of Developments), [vG]Flame (Head of Staff), [vG]Cruella (Head of Clan / Mapping), [vG]Sheikh (Head of Events), [vG]Atk (Administrator), [vG]Bam (Senior Moderator), [vG]Sparkle (Moderator & bot dev), [vG]Pluto (Trail Moderator)
+**vG Server Staff Team**: [vG]Axis (Head of Developments), [vG]Dylan (Head of Staff), [vG]Cruella (Head of Clan / Mapping), [vG]Sheikh (Head of Events), [vG]Atk (Administrator), [vG]Bam (Administrator) , [vG]Sparkle (Moderator & bot dev), [vG]Pluto (Trail Moderator)
 
-**Yakuza Team**: [VG]Noir (Oyabun), [vG]p.k (Wakagashira), [vG]Sparkle (Shateigashira), [vG]FOX (Kyodai), [vG]Storm (Shatei) — don’t mess with them!
+**Yakuza Team**: [VG]Bakondi (Oyabun), [vG]Ivan (Wakagashira), [vG]Maxwell (Shateigashira), [vG]FOX (Kobun), [vG]Ace (Kyodai), [vG]SDplayz (Shatei) — don’t mess with them, Yakuza is considered as Nightmare of SAPD!
 
-**SAPD Team**: [vG]Sheikh (Leader), [vG]Atk (Deputy Commissioner), epep (Captain), [vG]BAM (Lieutenant), [vG]Mic (Commander), [vG]Muhammad (Officer 3), [vG]Ace (Cadet), [vG]Pluto (Officer 2), Wax (Officer), [vG]SD (Officer 1) — they’ll catch you even if you’re too cool 😎👮
+**SAPD Team**: [vG]Sheikh (Leader), [vG]Atk (Deputy Commissioner), [vG]Sensai (Commander),[vG]Pluto (Major),[vG]BAM (Police Cheif), Muhammad (Officer 3), Wax (Officer 2)— they’ll catch you even if you’re too cool 😎👮
 
 Commands hints: /players, /status, /top, /help
 
 The user's display name is ${userDisplayName}. Respond in a fun, sarcastic, and engaging way.`;
 
+        // Combine the system prompt with the conversation history for the API call
+        const messages = [
+            { role: "system", content: systemMessage },
+            ...conversationHistory
+        ];
+        
+        // Indicate that the bot is "typing"
+        await interaction.channel.sendTyping();
+
         // Groq free model for general chatting
         const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
             model: "llama-3.3-70b-versatile", // <-- replace with free Groq model ID
-            messages: [
-                { role: "system", content: systemMessage },
-                { role: "user", content: prompt }
-            ]
+            messages: messages
         }, {
             headers: {
                 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
@@ -963,6 +1052,12 @@ The user's display name is ${userDisplayName}. Respond in a fun, sarcastic, and 
         if (!response.data.choices || response.data.choices.length === 0) throw new Error('No response from AI!');
 
         let reply = response.data.choices[0].message.content;
+
+        // Add the bot's reply to the conversation history
+        conversationHistory.push({ role: "assistant", content: reply });
+
+        // Save the updated history back to the cache. The TTL is set at initialization.
+        myCache.set(userId, conversationHistory);
 
         const embed = new EmbedBuilder()
             .setColor('#00CC99')
