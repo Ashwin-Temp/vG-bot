@@ -929,68 +929,6 @@ async function setMcname(interaction) {
 
 
 // Command functions
-client.on('messageCreate', (message) => {
-    // Other bot logic, if you have any
-    
-    // Call the function to check for the "hacker" word
-    handleHackerDetection(message);
-});
-
-const hackerCooldowns = {};
-
-// User IDs of the people you want to mention.
-// IMPORTANT: Replace these with the actual user IDs.
-const userIDsToMention = [
-    '785077198338916412',
-    '836294168632361000',
-    '936474701000224768'
-];
-
-// Cooldown duration in milliseconds (3 hours)
-
-/**
- * Handles messages and mentions users when the word "hacker" is used.
- * The mentions are limited to once every 3 hours.
- * @param {object} message The Discord message object.
- */
-const HACKER_COOLDOWN_DURATION = 3 * 60 * 60 * 1000;
-
-// List of words to check for, including typos
-const HACKER_TYPOS = ['hacker', 'hackker', 'haker', 'hakcer', 'haccker'];
-
-/**
- * Handles messages and mentions users when the word "hacker" is used.
- * The mentions are limited to once every 3 hours.
- * @param {object} message The Discord message object.
- */
-function handleHackerDetection(message) {
-    // Ignore bot messages to prevent loops
-    if (message.author.bot) return;
-
-    // Check if the message contains the word "hacker" or its common typos (case-insensitive)
-    const hasHackerWord = HACKER_TYPOS.some(word => message.content.toLowerCase().includes(word));
-
-    if (hasHackerWord) {
-        const lastMentionTime = hackerCooldowns.lastMentionTime || 0;
-        const currentTime = Date.now();
-
-        // Check if the cooldown period has passed
-        if (currentTime - lastMentionTime >= HACKER_COOLDOWN_DURATION) {
-            // Get the mentions as a string
-            const mentions = userIDsToMention.map(id => `<@${id}>`).join(' ');
-
-            // Send the message with the mentions
-            message.channel.send(`A wild hacker appears! ${mentions}`);
-
-            // Reset the cooldown timer
-            hackerCooldowns.lastMentionTime = currentTime;
-        } else {
-            // If the cooldown is still active, send a polite message
-            message.channel.send("Admins have been notified. Please hold tight!");
-        }
-    }
-}
-
 
 
 async function chatCommand(interaction) {
