@@ -1127,7 +1127,7 @@ async function getMinecraftPlayers(interaction) {
 
         // 🔴 Fallback to mcsrvstat.us API
         try {
-            const res = await fetch('https://api.mcsrvstat.us/2/play.jinxko.com:25566');
+            const res = await fetch('https://api.mcsrvstat.us/2/play.jinxko.com');
             if (!res.ok) throw new Error(`Fallback API error: ${res.status}`);
             const data = await res.json();
 
