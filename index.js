@@ -350,7 +350,6 @@ async function getMinecraftPlayersList() {
 
 
 const cooldowns = new Map();
-const wrongChannelUsage = new Map(); // userId -> count
 
 // Constants
 const COOLDOWN_DURATION = 3000; // 3 seconds
@@ -358,20 +357,35 @@ const REPLY_TIMEOUT = 3000;     // 3 seconds
 const SPECIAL_SERVER_ID = '1068500987519709184';
 const OTHER_BOT_ID = '1069232765121351770';
 
-// Channels
+// Channels where p/vmc/mc should be ignored
 const IGNORED_CHANNELS = new Set([
   '1226705208545906754',
   '1226706678267908167',
+  
 ]);
-const WRONG_CHANNELS = [
-  '1226706678267908167',
-  '1071423123829821520',
-  '1171431744566734918',
-];
 
-// Wrong channel usage limits
-const MAX_WRONG_USES = 2;
-const EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1 day in ms
+// Handles p/vmc message command logic
+async function handleCommand(isPlayer, interaction, db) {
+  const commandName = isPlayer ? 'players' : 'vmc';
+  const userId = interaction.user.id;
+
+  await db.collection('command_counts').updateOne(
+    { _id: commandName },
+    { $inc: { count: 1 } },
+    { upsert: true }
+  );
+
+  await db.collection('user_counts').updateOne(
+    { _id: userId },
+    { $inc: { count: 1 } },
+    { upsert: true }
+  );
+
+  return isPlayer
+    ? getPlayers(interaction)
+    : getMinecraftPlayers(interaction);
+}
+
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot || !message.guild) return;
@@ -384,72 +398,98 @@ client.on('messageCreate', async (message) => {
   const isPlayer = ['p', 'players', 'play', 'player', 'showplayer', 'showp', 'samp'].includes(content);
   const isVMC = ['v', 'vmc', 'mc', 'minecraft', 'spencer', 'valiantmc', 'valiantminecraft', 'showv'].includes(content);
 
-  // ---- WRONG CHANNEL HANDLING ----
-  if (WRONG_CHANNELS.includes(channelId) && (isPlayer || isVMC)) {
-    const count = wrongChannelUsage.get(userId) || 0;
-    if (count >= MAX_WRONG_USES) return; // Limit reached
+  // Check for restricted channel
+  const WRONG_CHANNELS = [
+  '1171431744566734918',
+  '123456789012345678', // add more channel IDs here
+  '987654321098765432'
+];
 
-    wrongChannelUsage.set(userId, count + 1);
-    setTimeout(() => wrongChannelUsage.delete(userId), EXPIRE_TIME); // Auto-reset
+const wrongChannelUsage = new Map(); // userId -> { count, firstUsed }
 
-    try {
-      let playerNames = [];
+const MAX_WRONG_USES = 2;
+const EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1 day in ms
 
-      if (isPlayer) {
-        try {
-          const response = await querySAMP();
-          playerNames = response.players?.map(p => p.name) || [];
-        } catch {
-          return; // Fail silently
-        }
-      } else if (isVMC) {
-        try {
-          playerNames = await getMinecraftPlayersList();
-        } catch {
-          return; // Fail silently
-        }
-      }
+if (WRONG_CHANNELS.includes(channelId) && (isPlayer || isVMC)) {
+  const userId = message.author.id;
+  const count = wrongChannelUsage.get(userId) || 0;
 
-      const playerNamesText = playerNames.length > 0
-        ? playerNames.join(', ')
-        : 'No players are currently online';
-
-      try {
-        const messages = [
-          { role: 'system', content: 'You are a helpful Discord assistant.' },
-          { role: 'user', content: `Someone typed ${isPlayer ? '/players' : '/vmc'} in the wrong channel. ` +
-            `The players currently online are: ${playerNamesText}. ` +
-            `Always tell them to use the command section next time. Keep the response short yet informative.` }
-        ];
-
-        const aiResponse = await axios.post(
-          'https://api.groq.com/openai/v1/chat/completions',
-          { model: "llama-3.3-70b-versatile", messages },
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        const aiReply = aiResponse.data.choices?.[0]?.message?.content
-          || `🌍 Players Online: ${playerNamesText}\n⚠️ Please use the command section next time.`;
-
-        await message.reply(aiReply);
-
-      } catch {
-        return; // Fail silently if AI fails
-      }
-
-    } catch {
-      return; // Unexpected errors, fail silently
-    }
-
-    return; // Stop further processing
+  if (count >= MAX_WRONG_USES) {
+    return; // Don't reply if user exceeded limit
   }
 
-  // ---- NORMAL COMMAND HANDLING ----
+  // Increment count
+  wrongChannelUsage.set(userId, count + 1);
+
+  // Schedule automatic removal after 1 day
+  setTimeout(() => wrongChannelUsage.delete(userId), EXPIRE_TIME);
+
+  try {
+    let playerNames = [];
+
+    if (isPlayer) {
+      try {
+        // SAMP players
+        const response = await querySAMP();
+        playerNames = response.players?.map(p => p.name) || [];
+      } catch {
+        // Fail silently
+        return;
+      }
+    } else if (isVMC) {
+      try {
+        // Minecraft players
+        playerNames = await getMinecraftPlayersList();
+      } catch {
+        // Fail silently
+        return;
+      }
+    }
+
+    const playerNamesText = playerNames.length > 0
+      ? playerNames.join(', ')
+      : 'No players are currently online';
+
+    try {
+      const messages = [
+        { role: 'system', content: 'You are a helpful Discord assistant.' },
+        { role: 'user', content: `Someone typed ${isPlayer ? '/players' : '/vmc'} in the wrong channel. ` +
+          `The players currently online are: ${playerNamesText}. ` +
+          `Politely tell them to use the command section next time. Keep the response short yet contain all the information.` }
+      ];
+
+      const aiResponse = await axios.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        { model: "llama-3.3-70b-versatile", messages },
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const aiReply = aiResponse.data.choices?.[0]?.message?.content
+        || `🌍 Players Online: ${playerNamesText}\n⚠️ Please use the command section next time.`;
+
+      await message.reply(aiReply);
+
+    } catch {
+      // Fail silently if AI fails
+      return;
+    }
+
+  } catch {
+    // Any unexpected errors, fail silently
+    return;
+  }
+
+  return; // Stop further processing
+}
+
+
+
+  // Existing cooldowns, ignored channels, and command handling
   if (!isPlayer && !isVMC) return;
   if (IGNORED_CHANNELS.has(channelId)) return;
   if (cooldowns.has(userId)) return;
@@ -463,8 +503,12 @@ client.on('messageCreate', async (message) => {
     member: message.member,
     guild: message.guild,
     deferReply: async () => {},
-    followUp: async (data) => await message.reply(data),
-    editReply: async (data) => await message.reply(data),
+    followUp: async (data) => {
+      return await message.reply(data);
+    },
+    editReply: async (data) => {
+      return await message.reply(data);
+    },
   };
 
   try {
@@ -482,17 +526,20 @@ client.on('messageCreate', async (message) => {
         console.log(`✅ ${triggerText} — External bot responded.`);
       } catch {
         console.log(`⏱️ No reply from other bot, fallback triggered.`);
-        await handleCommand(isPlayer ? 'player' : 'vmc', fakeInteraction, db);
+        await handleCommand(isPlayer, fakeInteraction, db);
       } finally {
         await triggerMsg.delete().catch(() => {});
       }
     } else {
-      await handleCommand(isPlayer ? 'player' : 'vmc', fakeInteraction, db);
+      await handleCommand(isPlayer, fakeInteraction, db);
     }
   } catch (err) {
     console.error('❌ Error handling command:', err);
+    try { await message.reply('❌ Something went wrong.').catch(() => {}); } catch {}
   }
 });
+
+
 
 const dailyVgenUsage = new Map(); // userId => { count, date }
 
