@@ -279,7 +279,7 @@ async function vmcSparkCommand(interaction) {
 
     const embed = new EmbedBuilder()
       .setTitle('ㅤㅤㅤㅤㅤVMC Spark ⛏️\n')
-      .setDescription(`\n\NYou’ll be notified when **${playerName}** joins the VMC server!`)
+      .setDescription(`\n You’ll be notified when **${playerName}** joins the VMC server!`)
       .addFields({
         name: ``,
         value: `⏱️ Time of Request: <t:${unix}:F>`,
@@ -306,6 +306,48 @@ async function vmcSparkCommand(interaction) {
     }
   }
 }
+
+
+// Reusable SAMP query function
+async function querySAMP() {
+  const attempt = () =>
+    new Promise((resolve, reject) => {
+      samp({ host: config.SAMP_SERVER_IP, port: config.SAMP_SERVER_PORT }, (err, res) => {
+        if (err) reject(err);
+        else resolve(res);
+      });
+    });
+
+  for (let i = 0; i < 3; i++) {
+    try {
+      const result = await Promise.race([
+        attempt(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 2000)) // 2s timeout
+      ]);
+      return result;
+    } catch (err) {
+      console.warn(`Attempt ${i + 1} failed:`, err.message);
+      if (i === 2) throw err;
+      await new Promise(res => setTimeout(res, 500)); // wait before retry
+    }
+  }
+}
+
+
+async function getMinecraftPlayersList() {
+  try {
+    const res = await axios.get('https://api.mcsrvstat.us/3/play.jinxko.com');
+    const data = res.data;
+
+    if (!data || !data.players) return [];
+
+    return data.players.list || [];
+  } catch (err) {
+    console.error('Error fetching Minecraft players:', err.message);
+    return [];
+  }
+}
+
 
 const cooldowns = new Map();
 
@@ -360,55 +402,123 @@ client.on('messageCreate', async (message) => {
   const channelId = message.channel.id;
 
   const isPlayer = ['p', 'players', 'play', 'player', 'showplayer', 'showp', 'samp'].includes(content);
-  const isVMC    = ['v', 'vmc', 'mc', 'minecraft', 'spencer', 'valiantmc', 'valiantminecraft', 'showv'].includes(content);
-  const isIP     = ['ip', 'serverip', 'getip', 'address'].includes(content);
+  const isVMC = ['v', 'vmc', 'mc', 'minecraft', 'spencer', 'valiantmc', 'valiantminecraft', 'showv'].includes(content);
 
-  if (!isPlayer && !isVMC && !isIP) return;
+  // Check for restricted channel
+  const WRONG_CHANNELS = [
+  '1226706678267908167',
+  '1071423123829821520', // add more channel IDs here
+];
+
+const wrongChannelUsage = new Map(); // userId -> { count, firstUsed }
+
+const MAX_WRONG_USES = 2;
+const EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1 day in ms
+
+if (WRONG_CHANNELS.includes(channelId) && (isPlayer || isVMC)) {
+  const userId = message.author.id;
+  const count = wrongChannelUsage.get(userId) || 0;
+
+  if (count >= MAX_WRONG_USES) {
+    return; // Don't reply if user exceeded limit
+  }
+
+  // Increment count
+  wrongChannelUsage.set(userId, count + 1);
+
+  // Schedule automatic removal after 1 day
+  setTimeout(() => wrongChannelUsage.delete(userId), EXPIRE_TIME);
+
+  try {
+    let playerNames = [];
+
+    if (isPlayer) {
+      try {
+        // SAMP players
+        const response = await querySAMP();
+        playerNames = response.players?.map(p => p.name) || [];
+      } catch {
+        // Fail silently
+        return;
+      }
+    } else if (isVMC) {
+      try {
+        // Minecraft players
+        playerNames = await getMinecraftPlayersList();
+      } catch {
+        // Fail silently
+        return;
+      }
+    }
+
+    const playerNamesText = playerNames.length > 0
+      ? playerNames.join(', ')
+      : 'No players are currently online';
+
+    try {
+      const messages = [
+        { role: 'system', content: 'You are a helpful Discord assistant.' },
+        { role: 'user', content: `Someone typed ${isPlayer ? '/players' : '/vmc'} in the wrong channel. ` +
+          `The players currently online are: ${playerNamesText}. ` +
+          `Politely tell them to use the command section next time. Keep the response short yet contain all the information.` }
+      ];
+
+      const aiResponse = await axios.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        { model: "llama-3.3-70b-versatile", messages },
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const aiReply = aiResponse.data.choices?.[0]?.message?.content
+        || `🌍 Players Online: ${playerNamesText}\n⚠️ Please use the command section next time.`;
+
+      await message.reply(aiReply);
+
+    } catch {
+      // Fail silently if AI fails
+      return;
+    }
+
+  } catch {
+    // Any unexpected errors, fail silently
+    return;
+  }
+
+  return; // Stop further processing
+}
+
+
+
+  // Existing cooldowns, ignored channels, and command handling
+  if (!isPlayer && !isVMC) return;
   if (IGNORED_CHANNELS.has(channelId)) return;
   if (cooldowns.has(userId)) return;
 
   cooldowns.set(userId, true);
   setTimeout(() => cooldowns.delete(userId), COOLDOWN_DURATION);
 
-  // Setup fake interaction
   const fakeInteraction = {
     user: message.author,
     channel: message.channel,
     member: message.member,
     guild: message.guild,
-  };
-
-  let replyMessage = null;
-
-  fakeInteraction.deferReply = async () => {};
-
-  // Added reply so getServerIP() works without changes
-  fakeInteraction.reply = async (data) => {
-    if (!replyMessage) {
-      replyMessage = await message.reply(data);
-    }
-    return replyMessage;
-  };
-
-  fakeInteraction.followUp = async (data) => {
-    if (!replyMessage) {
-      replyMessage = await message.reply(data);
-    }
-    return replyMessage;
-  };
-
-  fakeInteraction.editReply = async (data) => {
-    if (replyMessage) {
-      return replyMessage.edit(data);
-    } else {
-      replyMessage = await message.reply(data);
-      return replyMessage;
-    }
+    deferReply: async () => {},
+    followUp: async (data) => {
+      return await message.reply(data);
+    },
+    editReply: async (data) => {
+      return await message.reply(data);
+    },
   };
 
   try {
     if (guildId === SPECIAL_SERVER_ID) {
-      const triggerText = isPlayer ? '.p' : isVMC ? '.mc' : '.ip';
+      const triggerText = isPlayer ? '.p' : '.mc';
       const triggerMsg = await message.reply(triggerText);
 
       try {
@@ -417,41 +527,20 @@ client.on('messageCreate', async (message) => {
           m.channel.id === message.channel.id &&
           m.createdTimestamp > triggerMsg.createdTimestamp;
 
-        await message.channel.awaitMessages({
-          filter,
-          max: 1,
-          time: REPLY_TIMEOUT,
-          errors: ['time'],
-        });
-
+        await message.channel.awaitMessages({ filter, max: 1, time: REPLY_TIMEOUT, errors: ['time'] });
         console.log(`✅ ${triggerText} — External bot responded.`);
       } catch {
         console.log(`⏱️ No reply from other bot, fallback triggered.`);
-        if (isPlayer) {
-          await handleCommand('player', fakeInteraction, db);
-        } else if (isVMC) {
-          await handleCommand('vmc', fakeInteraction, db);
-        } else if (isIP) {
-          await handleCommand('ip', fakeInteraction, db);
-        }
+        await handleCommand(isPlayer, fakeInteraction, db);
       } finally {
         await triggerMsg.delete().catch(() => {});
       }
-
     } else {
-      if (isPlayer) {
-        await handleCommand('player', fakeInteraction, db);
-      } else if (isVMC) {
-        await handleCommand('vmc', fakeInteraction, db);
-      } else if (isIP) {
-        await handleCommand('ip', fakeInteraction, db);
-      }
+      await handleCommand(isPlayer, fakeInteraction, db);
     }
   } catch (err) {
     console.error('❌ Error handling command:', err);
-    try {
-      await message.reply('❌ Something went wrong.').catch(() => {});
-    } catch {}
+    try { await message.reply('❌ Something went wrong.').catch(() => {}); } catch {}
   }
 });
 
