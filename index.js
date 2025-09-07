@@ -400,9 +400,9 @@ client.on('messageCreate', async (message) => {
 
   // Check for restricted channel
   const WRONG_CHANNELS = [
-  '1171431744566734918',
-  '123456789012345678', // add more channel IDs here
-  '987654321098765432'
+  '1226706678267908167',
+  '1071423123829821520', // add more channel IDs here
+  '1171431744566734918'
 ];
 
 const wrongChannelUsage = new Map(); // userId -> { count, firstUsed }
