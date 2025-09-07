@@ -408,6 +408,7 @@ client.on('messageCreate', async (message) => {
   const WRONG_CHANNELS = [
   '1226706678267908167',
   '1071423123829821520', // add more channel IDs here
+    '1171431744566734918',
 ];
 
 const wrongChannelUsage = new Map(); // userId -> { count, firstUsed }
