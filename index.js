@@ -1016,54 +1016,48 @@ async function setMcname(interaction) {
 // Command functions
 
 
-async function chatCommand(interaction) {
-    const prompt = interaction.options.getString('message');
-    const userDisplayName = interaction.member?.displayName || interaction.user.username;
 
-    // Always defer immediately to prevent 'Unknown interaction' error
-    await interaction.deferReply();
 
+// ---------------- Chat Handler ----------------
+async function chatHandler({ userId, userDisplayName, prompt, sendReply, asEmbed = true, channel }) {
     try {
-        const userId = interaction.user.id;
-        
-        // Retrieve the conversation history for this user from the cache
+        // Retrieve conversation history
         let conversationHistory = myCache.get(userId) || [];
 
-        // Add the current user's prompt to the history
+        // Add user's prompt
         conversationHistory.push({ role: "user", content: prompt });
-        
-        // Limit the history to the last 10 messages to prevent it from getting too long
-        if (conversationHistory.length > 10) {
-            conversationHistory = conversationHistory.slice(-10);
-        }
+        if (conversationHistory.length > 10) conversationHistory = conversationHistory.slice(-10);
 
-        // System prompt tailored for humor, sarcasm, and Discord context
-        let systemMessage = `You are the vG Bot, a witty, humorous, and sarcastic assistant for the vG SA-MP Discord server. Keep replies short to medium, funny, and easy to understand. Only provide server info if asked. You were created by [vG]Sparkle. If the user is [vG]Sparkle, treat her as your creator. Make jokes wherever possible.
+        // Full system prompt
+        const systemMessage = `
+You are the vG Bot, a witty, humorous, and sarcastic assistant for the vG SA-MP Discord server. Keep replies short to medium, funny, and easy to understand. Only provide server info if asked. You were created by [vG]Sparkle. If the user is [vG]Sparkle, treat her as your creator. Make jokes wherever possible.
 
-Server IPs: SA-MP: 163.172.105.21:7777, Minecraft: play.jinxko.com (developed by Spencer)
+Server IPs:
+- SA-MP: 163.172.105.21:7777
+- Minecraft: play.jinxko.com (developed by Spencer)
 
-**vG Server Staff Team**: [vG]Axis (Head of Developments), [vG]Dylan (Head of Staff), [vG]Cruella (Head of Clan / Mapping), [vG]Sheikh (Head of Events), [vG]Atk (Administrator), [vG]Bam (Administrator) , [vG]Sparkle (Moderator & bot dev), [vG]Pluto (Trail Moderator)
+**vG Server Staff Team**: [vG]Axis (Head of Developments), [vG]Dylan (Head of Staff), [vG]Cruella (Head of Clan / Mapping), [vG]Sheikh (Head of Events), [vG]Atk (Administrator), [vG]Bam (Administrator), [vG]Sparkle (Moderator & bot dev), [vG]Pluto (Trail Moderator)
 
 **Yakuza Team**: [VG]Bakondi (Oyabun), [vG]Ivan (Wakagashira), [vG]Maxwell (Shateigashira), [vG]FOX (Kobun), [vG]Ace (Kyodai), [vG]SDplayz (Shatei) — don’t mess with them, Yakuza is considered as Nightmare of SAPD!
 
-**SAPD Team**: [vG]Sheikh (Leader), [vG]Atk (Deputy Commissioner), [vG]Sensai (Commander),[vG]Pluto (Major),[vG]BAM (Police Cheif), Muhammad (Officer 3), Wax (Officer 2)— they’ll catch you even if you’re too cool 😎👮
+**SAPD Team**: [vG]Sheikh (Leader), [vG]Atk (Deputy Commissioner), [vG]Sensai (Commander), [vG]Pluto (Major), [vG]BAM (Police Cheif), Muhammad (Officer 3), Wax (Officer 2)— they’ll catch you even if you’re too cool 😎👮
 
 Commands hints: /players, /status, /top, /help
 
-The user's display name is ${userDisplayName}. Respond in a fun, sarcastic, and engaging way.`;
+The user's display name is ${userDisplayName}. Respond in a fun, sarcastic, and engaging way.
+`;
 
-        // Combine the system prompt with the conversation history for the API call
         const messages = [
             { role: "system", content: systemMessage },
             ...conversationHistory
         ];
-        
-        // Indicate that the bot is "typing"
-        await interaction.channel.sendTyping();
 
-        // Groq free model for general chatting
+        // Typing indicator
+        if (channel) await channel.sendTyping();
+
+        // Call Groq API
         const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.3-70b-versatile", // <-- replace with free Groq model ID
+            model: "llama-3.3-70b-versatile",
             messages: messages
         }, {
             headers: {
@@ -1072,40 +1066,67 @@ The user's display name is ${userDisplayName}. Respond in a fun, sarcastic, and 
             }
         });
 
-        if (!response.data.choices || response.data.choices.length === 0) throw new Error('No response from AI!');
+        const reply = response.data.choices[0]?.message?.content || "I am exhausted! DND";
 
-        let reply = response.data.choices[0].message.content;
-
-        // Add the bot's reply to the conversation history
+        // Update conversation history
         conversationHistory.push({ role: "assistant", content: reply });
-
-        // Save the updated history back to the cache. The TTL is set at initialization.
         myCache.set(userId, conversationHistory);
 
-        const embed = new EmbedBuilder()
-            .setColor('#00CC99')
-            .setTitle(prompt.length > 250 ? prompt.slice(0, 250) + '...' : prompt)
-            .addFields({ name: 'vG Bot', value: reply.slice(0, 1024), inline: false })
-            .setFooter({ text: `Asked by ${userDisplayName}`, iconURL: interaction.user.displayAvatarURL() })
-            .setTimestamp();
-
-        await interaction.editReply({ embeds: [embed] });
+        // Send reply
+        if (asEmbed) {
+            const embed = new EmbedBuilder()
+                .setColor('#00CC99')
+                .setTitle(prompt.length > 250 ? prompt.slice(0, 250) + '...' : prompt)
+                .addFields({ name: 'vG Bot', value: reply.slice(0, 1024) })
+                .setFooter({ text: `Asked by ${userDisplayName}` })
+                .setTimestamp();
+            await sendReply({ embeds: [embed] });
+        } else {
+            await sendReply(reply);
+        }
 
     } catch (err) {
-        console.error('❌ /chat error:', err);
-        const errorEmbed = new EmbedBuilder()
-            .setColor('Red')
-            .setTitle('⚠️ Error')
-            .setDescription('I am Exhausted! DND')
-            .setTimestamp();
-
-        if (!interaction.replied) {
-            await interaction.editReply({ embeds: [errorEmbed] });
-        } else {
-            await interaction.followUp({ embeds: [errorEmbed] });
-        }
+        console.error('❌ Chat error:', err);
+        await sendReply("⚠️ Error: I am exhausted! DND");
     }
 }
+
+// ---------------- Slash Command ----------------
+async function chatCommand(interaction) {
+    const prompt = interaction.options.getString('message');
+    const userId = interaction.user.id;
+    const userDisplayName = interaction.member?.displayName || interaction.user.username;
+
+    await interaction.deferReply();
+
+    await chatHandler({
+        userId,
+        userDisplayName,
+        prompt,
+        sendReply: (content) => interaction.editReply(content),
+        asEmbed: true,
+        channel: interaction.channel
+    });
+}
+
+// ---------------- Mention Handler ----------------
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    if (message.mentions.has(client.user)) {
+        const prompt = message.content.replace(`<@!${client.user.id}>`, '').trim();
+        if (!prompt) return;
+
+        await chatHandler({
+            userId: message.author.id,
+            userDisplayName: message.member?.displayName || message.author.username,
+            prompt,
+            sendReply: (reply) => message.reply(reply),
+            asEmbed: false,
+            channel: message.channel
+        });
+    }
+});
 
 async function getMinecraftPlayers(interaction) {
     try {
