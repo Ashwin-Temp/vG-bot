@@ -402,47 +402,50 @@ client.on('messageCreate', async (message) => {
   const WRONG_CHANNELS = [
   '1226706678267908167',
   '1071423123829821520', // add more channel IDs here
-  '1171431744566734918'
+  '1171431744566734918',
+      '1414519948801347625'
 ];
 
+// Track wrong channel usage per user
 const wrongChannelUsage = new Map(); // userId -> { count, firstUsed }
 
 const MAX_WRONG_USES = 2;
 const EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1 day in ms
 
 if (WRONG_CHANNELS.includes(channelId) && (isPlayer || isVMC)) {
-  const userId = message.author.id;
-  const count = wrongChannelUsage.get(userId) || 0;
+  const now = Date.now();
+  const usage = wrongChannelUsage.get(userId);
 
-  if (count >= MAX_WRONG_USES) {
-    return; // Don't reply if user exceeded limit
+  if (usage) {
+    // Reset if 24h passed
+    if (now - usage.firstUsed > EXPIRE_TIME) {
+      wrongChannelUsage.set(userId, { count: 1, firstUsed: now });
+    } else if (usage.count >= MAX_WRONG_USES) {
+      return; // already exceeded, do nothing
+    } else {
+      usage.count += 1;
+    }
+  } else {
+    // First wrong usage
+    wrongChannelUsage.set(userId, { count: 1, firstUsed: now });
   }
 
-  // Increment count
-  wrongChannelUsage.set(userId, count + 1);
-
-  // Schedule automatic removal after 1 day
-  setTimeout(() => wrongChannelUsage.delete(userId), EXPIRE_TIME);
-
+  // From here, safe to reply since user hasn’t exceeded limit yet
   try {
     let playerNames = [];
 
     if (isPlayer) {
       try {
-        // SAMP players
         const response = await querySAMP();
         playerNames = response.players?.map(p => p.name) || [];
       } catch {
-        // Fail silently
-        return;
+        return; // fail silently
       }
     } else if (isVMC) {
       try {
-        // Minecraft players
         playerNames = await getMinecraftPlayersList();
       } catch {
-        // Fail silently
-        return;
+        return; // fail silently
       }
     }
 
@@ -475,13 +478,10 @@ if (WRONG_CHANNELS.includes(channelId) && (isPlayer || isVMC)) {
       await message.reply(aiReply);
 
     } catch {
-      // Fail silently if AI fails
-      return;
+      return; // fail silently if AI fails
     }
-
   } catch {
-    // Any unexpected errors, fail silently
-    return;
+    return; // unexpected error, fail silently
   }
 
   return; // Stop further processing
