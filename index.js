@@ -407,6 +407,7 @@ client.on('messageCreate', async (message) => {
 ];
 
 // Track wrong channel usage per user
+// Track wrong channel usage per user
 const wrongChannelUsage = new Map(); // userId -> { count, firstUsed }
 
 const MAX_WRONG_USES = 2;
