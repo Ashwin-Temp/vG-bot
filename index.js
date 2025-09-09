@@ -336,7 +336,7 @@ async function querySAMP() {
 
 async function getMinecraftPlayersList() {
   try {
-    const res = await axios.get('https://api.mcsrvstat.us/3/play.jinxko.com');
+    const res = await axios.get('https://api.mcsrvstat.us/3/play.jinxko.com:25566');
     const data = res.data;
 
     if (!data || !data.players) return [];
