@@ -341,12 +341,14 @@ async function getMinecraftPlayersList() {
 
     if (!data || !data.players) return [];
 
-    return data.players.list || [];
+    // Normalize objects to strings
+    return (data.players.list || []).map(p => typeof p === "string" ? p : p.name);
   } catch (err) {
     console.error('Error fetching Minecraft players:', err.message);
     return [];
   }
 }
+
 
 
 const cooldowns = new Map();
@@ -1244,14 +1246,15 @@ async function getMinecraftPlayers(interaction) {
 
             let playerList = '```🚫 No players online.```';
             if (onlineCount > 0) {
-                playerList = `\`\`\`\n${players.map((p, i) => {
-                    const index = `${i + 1}. `;
-                    let name = p;
-                    if (name.length > 20) name = name.slice(0, 19) + '…';
-                    const crown = name.toLowerCase() === 'xloggii' ? '👑' : '';
-                    return `${index}${name}${crown}`;
-                }).join('\n')}\n\`\`\``;
-            }
+    playerList = `\`\`\`\n${players.map((p, i) => {
+        const index = `${i + 1}. `;
+        let name = typeof p === 'string' ? p : p?.name || 'Unknown';
+        if (name.length > 20) name = name.slice(0, 19) + '…';
+        const crown = name.toLowerCase() === 'xloggii' ? '👑' : '';
+        return `${index}${name}${crown}`;
+    }).join('\n')}\n\`\`\``;
+}
+
 
             const embed = buildEmbed(interaction, data.online ? 'success' : 'fail', onlineCount, maxPlayers, playerList, true);
             await interaction.followUp({ embeds: [embed] });
