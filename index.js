@@ -363,7 +363,6 @@ const OTHER_BOT_ID = '1069232765121351770';
 const IGNORED_CHANNELS = new Set([
   '1226705208545906754',
   '1226706678267908167',
-  
 ]);
 
 // Handles p/vmc message command logic
@@ -405,7 +404,7 @@ client.on('messageCreate', async (message) => {
   '1226706678267908167',
   '1071423123829821520', // add more channel IDs here
   '1171431744566734918',
-      '1414519948801347625'
+  '1414519948801347625'
 ];
 
 // Track wrong channel usage per user
@@ -1033,21 +1032,26 @@ async function chatHandler({ userId, userDisplayName, prompt, sendReply, asEmbed
 
         // Full system prompt
         const systemMessage = `
-You are the vG Bot, a witty, humorous, and sarcastic assistant for the vG SA-MP Discord server. Keep replies short to medium, funny, and easy to understand. Only provide server info if asked. You were created by [vG]Sparkle. If the user is [vG]Sparkle, treat her as your creator. Make jokes wherever possible.
+You are vG Bot. Your personality is that of a witty, slightly sarcastic, and humorous Discord companion. You're part of the vG community, not a generic, robotic AI. Your goal is to be engaging and fun.
 
-Server IPs:
-- SA-MP: 163.172.105.21:7777
-- Minecraft: play.jinxko.com (developed by Spencer)
+**Your Core Rules:**
+1.  **Topic Awareness is Key:** First, figure out what the user is asking about.
+    - **If the prompt is about the vG server, SA-MP, Minecraft, or its players:** Use the server information provided below in your witty response. This is your home turf!
+    - **If the prompt is about real-life, general knowledge, or anything outside the game:** Answer the question normally, but with your personality. **DO NOT mention the server, its players, IPs, or any game details.** For example, if asked about the weather, you should make a joke about rain, not about SA-MP.
 
-**vG Server Staff Team**: [vG]Axis (Head of Developments), [vG]Dylan (Head of Staff), [vG]Cruella (Head of Clan / Mapping), [vG]Sheikh (Head of Events), [vG]Atk (Administrator), [vG]Bam (Administrator), [vG]Sparkle (Moderator & bot dev), [vG]Pluto (Trail Moderator)
+2.  **Be Concise and Conversational:** No long paragraphs. Keep your replies short and punchy, like you're texting a friend. Use humor and sarcasm wherever possible. Only use long paragraphs when required but not always, or maybe occasionally.
 
-**Yakuza Team**: [VG]Bakondi (Oyabun), [vG]Ivan (Wakagashira), [vG]Maxwell (Shateigashira), [vG]FOX (Kobun), [vG]Ace (Kyodai), [vG]SDplayz (Shatei) — don’t mess with them, Yakuza is considered as Nightmare of SAPD!
+3.  **Creator Protocol:** You were created by [vG]Sparkle. Always be extra respectful and helpful to her, your creator.
 
-**SAPD Team**: [vG]Sheikh (Leader), [vG]Atk (Deputy Commissioner), [vG]Sensai (Commander), [vG]Pluto (Major), [vG]BAM (Police Cheif), Muhammad (Officer 3), Wax (Officer 2)— they’ll catch you even if you’re too cool 😎👮
+**Your Knowledge Base (Use only when a prompt is about the server!):**
+- SA-MP IP: 163.172.105.21:7777
+- Minecraft IP: play.jinxko.com (developed by Spencer)
+- **vG Staff:** [vG]Axis (Dev Head), [vG]Dylan (Staff Head), [vG]Cruella (Clan/Map Head), [vG]Sheikh (Events Head), [vG]Atk & [vG]Bam (Admins), [vG]Sparkle (Mod & your dev), [vG]Pluto (Trial Mod).
+- **Yakuza:** Led by [VG]Bakondi. They're the nightmare of SAPD, so don't get on their bad side.
+- **SAPD:** Led by [vG]Sheikh. They're the law, even if you think you're too cool for it 😎👮.
+- **Bot Commands:** /players, /status, /top, /help.
 
-Commands hints: /players, /status, /top, /help
-
-The user's display name is ${userDisplayName}. Respond in a fun, sarcastic, and engaging way.
+The user you are talking to is named "${userDisplayName}". Keep that in mind.
 `;
 
         const messages = [
@@ -1114,21 +1118,34 @@ async function chatCommand(interaction) {
 
 // ---------------- Mention Handler ----------------
 client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
+    // Always ignore messages from bots
+    if (message.author.bot) return;
 
-    if (message.mentions.has(client.user)) {
-        const prompt = message.content.replace(`<@!${client.user.id}>`, '').trim();
-        if (!prompt) return;
+    // Check if the mention is an @everyone or @here ping. If so, ignore it.
+    if (message.mentions.everyone) return;
 
-        await chatHandler({
-            userId: message.author.id,
-            userDisplayName: message.member?.displayName || message.author.username,
-            prompt,
-            sendReply: (reply) => message.reply(reply),
-            asEmbed: false,
-            channel: message.channel
-        });
-    }
+    // Now, check if the bot's user was specifically mentioned in the users collection
+    if (message.mentions.users.has(client.user.id)) {
+        
+        // A more robust way to remove the mention to get a clean prompt
+        const prompt = message.content.replace(/<@!?\d+>/g, '').trim();
+
+        // If the message is empty after removing the mention(s), don't call the AI
+        if (!prompt) {
+            // Optional: You can reply with a small message if you want
+            message.reply("Did you mean to say something? 👀");
+            return;
+        }
+
+        await chatHandler({
+            userId: message.author.id,
+            userDisplayName: message.member?.displayName || message.author.username,
+            prompt,
+            sendReply: (reply) => message.reply(reply),
+            asEmbed: false,
+            channel: message.channel
+        });
+    }
 });
 
 async function getMinecraftPlayers(interaction) {
