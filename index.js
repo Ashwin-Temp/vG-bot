@@ -1175,9 +1175,10 @@ async function getMinecraftPlayers(interaction) {
         }
 
         const embed = buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, false);
-        await interaction.followUp({ embeds: [embed] });
+        // ⬇️ Send FIRST reply here
+        await interaction.editReply({ embeds: [embed] });
 
-        // 🔁 Fetch /get and determine activity summary
+        // 🔁 Now fetch /get and determine activity summary
         try {
             const trackRes = await fetch('https://my-worker-v2.valiantgaming.workers.dev/get');
             const data = await trackRes.json();
@@ -1216,7 +1217,7 @@ async function getMinecraftPlayers(interaction) {
                 recentPlayer = interaction.client?.recentCache;
 
                 if (!recentPlayer) {
-                    const fallbackRes = await fetch('http://www.jinxko.com:8080/api?endpoint=public/playerRoster');
+                    const fallbackRes = await fetch('http://jinxko.com:8080/api?endpoint=public/playerRoster');
                     const rosterJson = await fallbackRes.json();
 
                     if (rosterJson.status === 'success') {
@@ -1241,6 +1242,7 @@ async function getMinecraftPlayers(interaction) {
             }
 
             if (recentPlayer || mostActive) {
+                // ⬇️ Update SAME message
                 await interaction.editReply({ embeds: [embed] });
             }
 
@@ -1263,22 +1265,21 @@ async function getMinecraftPlayers(interaction) {
 
             let playerList = '```🚫 No players online.```';
             if (onlineCount > 0) {
-    playerList = `\`\`\`\n${players.map((p, i) => {
-        const index = `${i + 1}. `;
-        let name = typeof p === 'string' ? p : p?.name || 'Unknown';
-        if (name.length > 20) name = name.slice(0, 19) + '…';
-        const crown = name.toLowerCase() === 'xloggii' ? '👑' : '';
-        return `${index}${name}${crown}`;
-    }).join('\n')}\n\`\`\``;
-}
-
+                playerList = `\`\`\`\n${players.map((p, i) => {
+                    const index = `${i + 1}. `;
+                    let name = typeof p === 'string' ? p : p?.name || 'Unknown';
+                    if (name.length > 20) name = name.slice(0, 19) + '…';
+                    const crown = name.toLowerCase() === 'xloggii' ? '👑' : '';
+                    return `${index}${name}${crown}`;
+                }).join('\n')}\n\`\`\``;
+            }
 
             const embed = buildEmbed(interaction, data.online ? 'success' : 'fail', onlineCount, maxPlayers, playerList, true);
-            await interaction.followUp({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] }); // ⬅️ use editReply, not followUp
 
         } catch (fallbackError) {
             console.error('Fallback API also failed:', fallbackError);
-            await interaction.followUp({
+            await interaction.editReply({
                 content: '❌ Both the main API and fallback failed. Please try again later.',
                 ephemeral: true,
             });
