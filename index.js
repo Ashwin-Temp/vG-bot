@@ -731,7 +731,7 @@ async function handleMcTop(interaction) {
     // 🟧 Handle other leaderboard categories
     let apiRes;
     try {
-      apiRes = await axios.get('https://www.jinxko.com/api?endpoint=public/playerRoster');
+      apiRes = await axios.get('https://www.jinxko.com:8080/api?endpoint=public/playerRoster');
     } catch (err) {
       console.error("Error fetching player roster:", err);
       return interaction.followUp("⚠️ Failed to fetch player data.");
@@ -843,7 +843,7 @@ async function getMcstats(interaction) {
     // Fetch roster from API
     let roster;
     try {
-      const response = await axios.get('https://www.jinxko.com/api?endpoint=public/playerRoster');
+      const response = await axios.get('https://www.jinxko.com:8080/api?endpoint=public/playerRoster');
       roster = response.data.roster;
     } catch (err) {
       console.error('API fetch error:', err);
@@ -921,7 +921,7 @@ async function fetchAndCacheRoster() {
   }
 
   try {
-    const response = await axios.get('https://www.jinxko.com/api?endpoint=public/playerRoster');
+    const response = await axios.get('https://www.jinxko.com:8080/api?endpoint=public/playerRoster');
     const roster = response.data.roster;
 
     // Filter only username and uuid
@@ -1216,7 +1216,7 @@ async function getMinecraftPlayers(interaction) {
                 recentPlayer = interaction.client?.recentCache;
 
                 if (!recentPlayer) {
-                    const fallbackRes = await fetch('https://www.jinxko.com/api?endpoint=public/playerRoster');
+                    const fallbackRes = await fetch('https://www.jinxko.com:8080/api?endpoint=public/playerRoster');
                     const rosterJson = await fallbackRes.json();
 
                     if (rosterJson.status === 'success') {
