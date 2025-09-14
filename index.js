@@ -680,7 +680,7 @@ async function generateImage(prompt, interaction) {
 
 
 async function handleMcTop(interaction) {
-  const category = interaction.options.getString('category');
+  const category = (interaction.options.getString('category') || '').toLowerCase();
 
   const titleMap = {
     playtime: 'ㅤㅤㅤㅤ🕒 Top AFK Warriors 🕒',
@@ -692,61 +692,65 @@ async function handleMcTop(interaction) {
   try {
     await interaction.deferReply();
 
+    // 🟢 Today leaderboard
     if (category === 'today') {
-  let response;
-  try {
-    response = await axios.get("https://my-worker.valiantgaming.workers.dev/get");
-  } catch (apiErr) {
-    console.error("Error fetching from /get:", apiErr);
-    return interaction.followUp("⚠️ Failed to fetch playtime data.");
-  }
+      let response;
+      try {
+        response = await axios.get("https://my-worker-v2.valiantgaming.workers.dev/get");
+      } catch (apiErr) {
+        console.error("Error fetching from /get:", apiErr);
+        return interaction.followUp("⚠️ Failed to fetch playtime data.");
+      }
 
-  const data = response.data;
-  if (!data || Object.keys(data).length === 0) {
-    return interaction.followUp('❌ No playtime recorded for today.');
-  }
+      let data = response.data;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (err) {
+          console.error("Error parsing JSON:", err);
+          return interaction.followUp("⚠️ Failed to parse playtime data.");
+        }
+      }
 
-  // Convert to array and sort by time (in minutes)
-  const playersArray = Object.entries(data).map(([username, stats]) => {
-    const match = stats.playtime.match(/(\d+)h (\d+)m/);
-    const mins = match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
-    return { username, ...stats, totalMinutes: mins };
-  });
+      if (!data || Object.keys(data).length === 0) {
+        return interaction.followUp('❌ No playtime recorded for today.');
+      }
 
-  const sorted = playersArray.sort((a, b) => b.totalMinutes - a.totalMinutes).slice(0, 10);
+      const playersArray = Object.entries(data).map(([username, stats]) => {
+        const match = stats.playtime.match(/(\d+)h (\d+)m/);
+        const mins = match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
+        return { username, ...stats, totalMinutes: mins };
+      });
 
-  let leaderboard = '```md\n';
-  sorted.forEach((player, index) => {
-    
-    leaderboard += `#${String(index + 1).padEnd(2)} ${player.username.padEnd(16)} : ${player.playtime}${player.isOnline ? ' 🟡' : ''}\n`;
+      const sorted = playersArray.sort((a, b) => b.totalMinutes - a.totalMinutes).slice(0, 10);
 
-  });
-  leaderboard += '```';
+      let leaderboard = '```md\n';
+      sorted.forEach((player, index) => {
+        leaderboard += `#${String(index + 1).padEnd(2)} ${player.username.padEnd(16)} : ${player.playtime}${player.isOnline ? ' 🟡' : ''}\n`;
+      });
+      leaderboard += '```';
 
-  const showDotNote = sorted.some(p => p.isOnline);
+      const showDotNote = sorted.some(p => p.isOnline);
 
-  const embed = new EmbedBuilder()
-    .setTitle('ㅤㅤ✦✦ ValiantMC [1.21+] ✦✦')
-    .setColor('#39FF14')
-    .setDescription([
-      '**🏆 Top vMC Playtime Today**',
-      leaderboard,
-      ...(showDotNote ? ['ㅤ🟡 Playtime updates after logout.'] : [])
-    ].join('\n'))
-    .setFooter({
-      text: `Requested by ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
-      iconURL: interaction.user.displayAvatarURL()
-    })
-    .setTimestamp();
+      const embed = new EmbedBuilder()
+        .setTitle('ㅤㅤ✦✦ ValiantMC [1.21+] ✦✦')
+        .setColor('#39FF14')
+        .setDescription([
+          `**${titleMap.today}**`,
+          leaderboard,
+          ...(showDotNote ? ['ㅤ🟡 Playtime updates after logout.'] : [])
+        ].join('\n'))
+        .setFooter({
+          text: `Requested by ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
+          iconURL: interaction.user.displayAvatarURL()
+        })
+        .setTimestamp();
 
-  return interaction.followUp({ embeds: [embed] });
-}
+      return interaction.followUp({ embeds: [embed] });
+    }
 
-
-    // 🟧 Handle other leaderboard categories
+    // 🟧 Other leaderboard categories
     let apiRes;
     try {
-      apiRes = await axios.get('http://www.jinxko.com:8080/api?endpoint=public/playerRoster');
+      apiRes = await axios.get('https://www.jinxko.com/api?endpoint=public/playerRoster');
     } catch (err) {
       console.error("Error fetching player roster:", err);
       return interaction.followUp("⚠️ Failed to fetch player data.");
@@ -813,17 +817,13 @@ async function handleMcTop(interaction) {
   }
 }
 
-
-
-
-// Helper: Converts time string (e.g. "1d 2h 30m") to total seconds
+// Helpers
 function parseTime(str) {
   const regex = /(?:(\d+)d)?\s*(?:(\d+)h)?\s*(?:(\d+)m)?/;
   const [, d = 0, h = 0, m = 0] = str.match(regex).map(Number);
   return d * 86400 + h * 3600 + m * 60;
 }
 
-// Helper: Formats playtime string with leading zeros
 function formatPlaytime(playtimeStr) {
   let days = 0, hours = 0, minutes = 0;
   const dayMatch = playtimeStr.match(/(\d+)d/);
