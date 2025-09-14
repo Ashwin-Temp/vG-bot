@@ -500,18 +500,33 @@ if (WRONG_CHANNELS.includes(channelId) && (isPlayer || isVMC)) {
   setTimeout(() => cooldowns.delete(userId), COOLDOWN_DURATION);
 
   const fakeInteraction = {
-    user: message.author,
-    channel: message.channel,
-    member: message.member,
-    guild: message.guild,
-    deferReply: async () => {},
-    followUp: async (data) => {
-      return await message.reply(data);
-    },
-    editReply: async (data) => {
-      return await message.reply(data);
-    },
-  };
+  user: message.author,
+  channel: message.channel,
+  member: message.member,
+  guild: message.guild,
+  _replyMessage: null, // store first reply
+
+  deferReply: async () => {},
+
+  followUp: async (data) => {
+    if (fakeInteraction._replyMessage) {
+      return await message.channel.send(data); // extra messages if needed
+    } else {
+      fakeInteraction._replyMessage = await message.reply(data);
+      return fakeInteraction._replyMessage;
+    }
+  },
+
+  editReply: async (data) => {
+    if (fakeInteraction._replyMessage) {
+      return await fakeInteraction._replyMessage.edit(data); // edit first message
+    } else {
+      fakeInteraction._replyMessage = await message.reply(data); // fallback
+      return fakeInteraction._replyMessage;
+    }
+  },
+};
+
 
   try {
     if (guildId === SPECIAL_SERVER_ID) {
@@ -1148,6 +1163,7 @@ client.on('messageCreate', async (message) => {
     }
 });
 
+
 async function getMinecraftPlayers(interaction) {
     try {
         await interaction.deferReply();
@@ -1174,11 +1190,11 @@ async function getMinecraftPlayers(interaction) {
             }).join('\n')}\n\`\`\``;
         }
 
+        // 🟢 Build embed with placeholder summary
         const embed = buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, false);
-        // ⬇️ Send FIRST reply here
         await interaction.editReply({ embeds: [embed] });
 
-        // 🔁 Now fetch /get and determine activity summary
+        // 🔁 Now fetch activity summary
         try {
             const trackRes = await fetch('https://my-worker-v2.valiantgaming.workers.dev/get');
             const data = await trackRes.json();
@@ -1201,19 +1217,11 @@ async function getMinecraftPlayers(interaction) {
                     return (bh * 60 + bm) - (ah * 60 + am);
                 })[0][0];
 
-                // 💾 Cache recent player
                 if (interaction.client) {
                     interaction.client.recentCache = recentPlayer;
                 }
-
-                embed.addFields({
-                    name: '',
-                    value: `**Most Active:** ${mostActive}\n**Recent Player:** ${recentPlayer}`,
-                    inline: false
-                });
-
             } else {
-                // ❌ /get is empty — fallback
+                // ❌ /get is empty — fallback to API
                 recentPlayer = interaction.client?.recentCache;
 
                 if (!recentPlayer) {
@@ -1231,23 +1239,37 @@ async function getMinecraftPlayers(interaction) {
                         }
                     }
                 }
-
-                if (recentPlayer) {
-                    embed.addFields({
-                        name: 'Activity Summary',
-                        value: `**Recent Player:** ${recentPlayer}`,
-                        inline: false
-                    });
-                }
             }
 
-            if (recentPlayer || mostActive) {
-                // ⬇️ Update SAME message
-                await interaction.editReply({ embeds: [embed] });
-            }
+            // 📝 Build summary lines dynamically
+let summaryLines = [];
+if (mostActive) summaryLines.push(`Most Active: ${mostActive}`);
+if (recentPlayer) summaryLines.push(`Recent Player: ${recentPlayer}`);
+
+if (summaryLines.length > 0) {
+    // Replace placeholder
+    embed.data.fields = embed.data.fields.map(f =>
+        f.name === 'Activity Summary'
+            ? {
+                name: 'Activity Summary',
+                value: `\`\`\`\n${summaryLines.join('\n')}\n\`\`\``,
+                inline: false
+              }
+            : f
+    );
+} else {
+    // Remove placeholder if nothing
+    embed.data.fields = embed.data.fields.filter(f => f.name !== 'Activity Summary');
+}
+
+
+            await interaction.editReply({ embeds: [embed] });
 
         } catch (err) {
             console.warn("Activity summary failed:", err);
+            // ❌ On error → remove placeholder
+            embed.data.fields = embed.data.fields.filter(f => f.name !== 'Activity Summary');
+            await interaction.editReply({ embeds: [embed] });
         }
 
     } catch (err) {
@@ -1275,7 +1297,11 @@ async function getMinecraftPlayers(interaction) {
             }
 
             const embed = buildEmbed(interaction, data.online ? 'success' : 'fail', onlineCount, maxPlayers, playerList, true);
-            await interaction.editReply({ embeds: [embed] }); // ⬅️ use editReply, not followUp
+
+            // Fallback → remove placeholder
+            embed.data.fields = embed.data.fields.filter(f => f.name !== 'Activity Summary');
+
+            await interaction.editReply({ embeds: [embed] });
 
         } catch (fallbackError) {
             console.error('Fallback API also failed:', fallbackError);
@@ -1306,7 +1332,13 @@ function buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, is
                 name: 'vMC IP',
                 value: `\`\`\`\nplay.jinxko.com\`\`\``,
                 inline: false
-            }
+            },
+            {
+  name: 'Activity Summary',
+  value: `\`\`\`⏳ Fetching activity...\`\`\``,
+  inline: false
+}
+
         )
         .setFooter({
             text: `Requested by ${interaction.member?.displayName || interaction.user.username}${isFallback ? ' • Fallback mode' : ''} \nMade with ✨`,
@@ -1314,8 +1346,6 @@ function buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, is
         })
         .setTimestamp();
 }
-
-
 
 async function getPlayers(interaction) {
   try {
