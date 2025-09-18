@@ -133,10 +133,19 @@ client.on('interactionCreate', async (interaction) => {
     case 'botstats': await botStatsCommand(interaction, db); break;
     // In your index.js, inside the interaction listener...
 case 'tictactoe': {
-    // ✅ Defer the reply IMMEDIATELY! This is crucial.
-    await interaction.deferReply(); 
-
     const opponent = interaction.options.getUser('opponent');
+
+    // ✨ NEW: Add validation check here
+    if (opponent.id === interaction.user.id) {
+        // If the user chose themselves, send a private message and stop.
+        return interaction.reply({
+            content: "You can't challenge yourself to a game! Please pick another player.",
+            ephemeral: true
+        });
+    }
+
+    // Defer the reply *after* validation passes.
+    await interaction.deferReply();
 
     if (opponent.id === interaction.client.user.id) {
         // Call the function to play against the AI
