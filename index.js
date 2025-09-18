@@ -1716,83 +1716,119 @@ async function sparkCommand(interaction) {
     }
 }
 
-async function getTopActivityPlayers(interaction, page = 1) {
+async function showTopActivity(interaction) {
     try {
-        // Handle different interaction types
-        if (interaction.isCommand()) {
-            await interaction.deferReply();
-        } else {
-            await interaction.deferUpdate();
-        }
+        // 1. Defer the initial reply
+        await interaction.deferReply();
 
-        const topActivityCollection = db.collection('topactivity');
-        const limit = 10;
-        const skip = (page - 1) * limit;
+        // Fetches data and builds the message payload (embeds, components)
+        const getPagePayload = async (page) => {
+            const limit = 10;
+            const skip = (page - 1) * limit;
+            const topActivityCollection = db.collection('topactivity');
 
-        const topPlayers = await topActivityCollection.find().sort({ score: -1 }).skip(skip).limit(limit).toArray();
+            // Fetch one extra document to check if a "next" page exists
+            const players = await topActivityCollection.find().sort({ score: -1 }).skip(skip).limit(limit + 1).toArray();
+            
+            const hasNextPage = players.length > limit;
+            // Slice the array to only include the items for the current page
+            const currentPagePlayers = players.slice(0, limit);
 
-        if (topPlayers.length === 0) {
-            return interaction.editReply('❌ No player activity data found.');
-        }
+            if (currentPagePlayers.length === 0) {
+                return { content: '❌ No player activity data found for this page.', embeds: [], components: [] };
+            }
 
-        const embed = new EmbedBuilder()
-            .setColor(0xFFD700)
-            .setTitle(`🏅 Top Players by Activity - Page ${page}`)
-            .setFooter({
-                text: `\n Requested by ${interaction.member?.displayName || interaction.user.username} \n • Made with ✨`,
-                iconURL: interaction.user.displayAvatarURL()
-            })
-            .setTimestamp();
+            const embed = new EmbedBuilder()
+                .setColor(0xFFD700)
+                .setTitle(`🏅 Top Players by Activity - Page ${page}`)
+                .setFooter({
+                    text: `Requested by ${interaction.user.username}`,
+                    iconURL: interaction.user.displayAvatarURL()
+                })
+                .setTimestamp();
 
-        topPlayers.forEach((player, index) => {
-            const position = index + 1 + (page - 1) * limit;
-            const formattedPlayer = `#${position} **${player.name}** : **${player.score}**`;
-            embed.addFields({
-                name: '\u200B',
-                value: formattedPlayer,
-                inline: false
+            currentPagePlayers.forEach((player, index) => {
+                const position = index + 1 + skip;
+                embed.addFields({
+                    name: `\u200B`, // Zero-width space for spacing
+                    value: `#${position} **${player.name}**: ${player.score}`,
+                    inline: false
+                });
             });
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('prev_page')
+                    .setLabel('Previous')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(page === 1), // Disable on first page
+                new ButtonBuilder()
+                    .setCustomId('next_page')
+                    .setLabel('Next')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(!hasNextPage) // Disable if no next page
+            );
+
+            return { embeds: [embed], components: [row] };
+        };
+
+        // 2. Send the initial message (Page 1)
+        let currentPage = 1;
+        const initialPayload = await getPagePayload(currentPage);
+        const message = await interaction.editReply(initialPayload);
+
+        // 3. Create the collector
+        const collector = message.createMessageComponentCollector({
+            componentType: ComponentType.Button,
+            time: 300000 // 5 minutes of inactivity
         });
 
-        // Create buttons with disabled states
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`prev_${page}`)
-                .setLabel('Previous')
-                .setStyle(ButtonStyle.Primary)
-                .setDisabled(page === 1),
-            new ButtonBuilder()
-                .setCustomId(`next_${page}`)
-                .setLabel('Next')
-                .setStyle(ButtonStyle.Primary)
-                .setDisabled(page === 2)
-        );
+        // 4. Handle button clicks with the collector
+        collector.on('collect', async (buttonInteraction) => {
+            // Acknowledge the button click immediately
+            await buttonInteraction.deferUpdate();
 
-        // Edit the original message
-        await interaction.editReply({
-            embeds: [embed],
-            components: [row]
+            if (buttonInteraction.customId === 'next_page') {
+                currentPage++;
+            } else if (buttonInteraction.customId === 'prev_page') {
+                currentPage--;
+            }
+
+            // Get the new page content and update the message
+            const newPayload = await getPagePayload(currentPage);
+            await buttonInteraction.editReply(newPayload);
+        });
+
+        // 5. Handle the end of the collection (e.g., timeout)
+        collector.on('end', async () => {
+            try {
+                // Fetch the final state of the message to disable buttons
+                const finalPayload = await getPagePayload(currentPage);
+                // Disable all buttons
+                finalPayload.components.forEach(row => {
+                    row.components.forEach(component => component.setDisabled(true));
+                });
+                await interaction.editReply(finalPayload);
+            } catch (error) {
+                // Ignore if the message was deleted
+                if (error.code === 10008) {
+                  console.log("Message for collector was deleted.");
+                } else {
+                  console.error("Error disabling buttons after collector end:", error);
+                }
+            }
         });
 
     } catch (err) {
-        console.error('TopActivity error:', err);
-        await interaction.editReply('⚠️ Error fetching top activity players.');
+        console.error('TopActivity command error:', err);
+        // Ensure we reply if something went wrong early
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({ content: '⚠️ An error occurred while fetching activity data.', embeds: [], components: [] });
+        } else {
+            await interaction.reply({ content: '⚠️ An error occurred while fetching activity data.', embeds: [], components: [], ephemeral: true });
+        }
     }
 }
-
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
-
-    const [action, currentPage] = interaction.customId.split('_');
-    let page = parseInt(currentPage);
-
-    // Update page number with boundaries
-    page = action === 'next' ? page + 1 : page - 1;
-    page = Math.max(1, Math.min(page, 2));  // Limit to 5 pages
-
-    await getTopActivityPlayers(interaction, page);
-});
-
 
 async function getServerIP(interaction) {
     const embed = new EmbedBuilder()
