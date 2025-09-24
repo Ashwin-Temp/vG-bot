@@ -1722,7 +1722,7 @@ async function getTopActivityPlayers(interaction, page = 1) {
     try {
         const isCommand = interaction.isCommand();
 
-        // Only defer commands, NOT our Top Players buttons
+        // Only defer commands, NOT buttons
         if (isCommand && !interaction.deferred && !interaction.replied) {
             await interaction.deferReply();
         }
@@ -1730,14 +1730,15 @@ async function getTopActivityPlayers(interaction, page = 1) {
         const topActivityCollection = db.collection('topactivity');
         const allPlayers = await topActivityCollection.find().toArray();
 
-        if (allPlayers.length === 0) {
+        if (!allPlayers.length) {
             const msg = '❌ No player activity data found.';
-            if (isCommand) {
-                if (!interaction.replied) await interaction.editReply(msg);
+            if (interaction.isButton()) {
+                return await interaction.update({ content: msg, embeds: [], components: [] });
             } else {
-                await interaction.followUp({ content: msg, ephemeral: true });
+                return interaction.replied
+                    ? await interaction.followUp({ content: msg, ephemeral: true })
+                    : await interaction.editReply(msg);
             }
-            return;
         }
 
         // Keep only highest score per player name (case-insensitive)
@@ -1749,21 +1750,21 @@ async function getTopActivityPlayers(interaction, page = 1) {
             }
         });
 
-        // Convert to array and sort by score descending
         const mergedPlayers = Object.values(highestPlayersMap).sort((a, b) => b.score - a.score);
 
         const limit = 10;
         const skip = (page - 1) * limit;
         const topPlayers = mergedPlayers.slice(skip, skip + limit);
 
-        if (topPlayers.length === 0) {
-            const msg = '❌ No player activity data found.';
-            if (isCommand) {
-                if (!interaction.replied) await interaction.editReply(msg);
+        if (!topPlayers.length) {
+            const msg = '❌ No players on this page.';
+            if (interaction.isButton()) {
+                return await interaction.update({ content: msg, embeds: [], components: [] });
             } else {
-                await interaction.followUp({ content: msg, ephemeral: true });
+                return interaction.replied
+                    ? await interaction.followUp({ content: msg, ephemeral: true })
+                    : await interaction.editReply(msg);
             }
-            return;
         }
 
         const embed = new EmbedBuilder()
@@ -1777,8 +1778,7 @@ async function getTopActivityPlayers(interaction, page = 1) {
 
         topPlayers.forEach((player, index) => {
             const position = index + 1 + (page - 1) * limit;
-            const formattedPlayer = `#${position} **${player.name}** : **${player.score}**`;
-            embed.addFields({ name: '\u200B', value: formattedPlayer, inline: false });
+            embed.addFields({ name: '\u200B', value: `#${position} **${player.name}** : **${player.score}**`, inline: false });
         });
 
         const row = new ActionRowBuilder().addComponents(
@@ -1794,29 +1794,27 @@ async function getTopActivityPlayers(interaction, page = 1) {
                 .setDisabled(page === 2)
         );
 
-        // Handle buttons and commands separately
+        // Respond properly
         if (interaction.isButton() && ['next', 'prev'].includes(interaction.customId.split('_')[0])) {
-            // **DO NOT defer**, just update directly
-            await interaction.update({ embeds: [embed], components: [row] });
+            return await interaction.update({ embeds: [embed], components: [row] });
         } else if (isCommand) {
             if (!interaction.replied) {
-                await interaction.editReply({ embeds: [embed], components: [row] });
+                return await interaction.editReply({ embeds: [embed], components: [row] });
             } else {
-                await interaction.followUp({ embeds: [embed], components: [row], ephemeral: false });
+                return await interaction.followUp({ embeds: [embed], components: [row], ephemeral: false });
             }
         }
 
     } catch (err) {
         console.error('TopActivity error:', err);
-        try {
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: '⚠️ Error fetching top activity players.', ephemeral: false });
-            } else {
-                await interaction.followUp({ content: '⚠️ Error fetching top activity players.', ephemeral: false });
-            }
-        } catch {}
+        if (!interaction.replied && !interaction.deferred) {
+            try { await interaction.reply({ content: '⚠️ Error fetching top activity players.', ephemeral: true }); } catch {}
+        } else {
+            try { await interaction.followUp({ content: '⚠️ Error fetching top activity players.', ephemeral: true }); } catch {}
+        }
     }
 }
+
 
 
 async function getServerIP(interaction) {
