@@ -1722,10 +1722,9 @@ async function getTopActivityPlayers(interaction, page = 1) {
     try {
         const isCommand = interaction.isCommand();
 
+        // Only defer commands, NOT our Top Players buttons
         if (isCommand && !interaction.deferred && !interaction.replied) {
             await interaction.deferReply();
-        } else if (interaction.isButton() && !interaction.deferred && !interaction.replied) {
-            await interaction.deferUpdate();
         }
 
         const topActivityCollection = db.collection('topactivity');
@@ -1795,18 +1794,17 @@ async function getTopActivityPlayers(interaction, page = 1) {
                 .setDisabled(page === 2)
         );
 
+        // Handle buttons and commands separately
         if (interaction.isButton() && ['next', 'prev'].includes(interaction.customId.split('_')[0])) {
-    // Directly update the message, no need to defer
-    await interaction.update({ embeds: [embed], components: [row] });
-} else if (isCommand) {
-    // Normal command handling
-    if (!interaction.replied) {
-        await interaction.editReply({ embeds: [embed], components: [row] });
-    } else {
-        await interaction.followUp({ embeds: [embed], components: [row], ephemeral: false });
-    }
-}
-
+            // **DO NOT defer**, just update directly
+            await interaction.update({ embeds: [embed], components: [row] });
+        } else if (isCommand) {
+            if (!interaction.replied) {
+                await interaction.editReply({ embeds: [embed], components: [row] });
+            } else {
+                await interaction.followUp({ embeds: [embed], components: [row], ephemeral: false });
+            }
+        }
 
     } catch (err) {
         console.error('TopActivity error:', err);
@@ -1819,20 +1817,6 @@ async function getTopActivityPlayers(interaction, page = 1) {
         } catch {}
     }
 }
-
-
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
-
-    const [action, currentPage] = interaction.customId.split('_');
-    if (!['next', 'prev'].includes(action)) return; // ignore other buttons
-
-    let page = parseInt(currentPage);
-    page = action === 'next' ? page + 1 : page - 1;
-    page = Math.max(1, Math.min(page, 2)); // limit to 2 pages
-
-    await getTopActivityPlayers(interaction, page);
-});
 
 
 async function getServerIP(interaction) {
