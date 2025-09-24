@@ -1722,7 +1722,6 @@ async function getTopActivityPlayers(interaction, page = 1) {
     try {
         const isCommand = interaction.isCommand();
 
-        // Only defer if not already replied/deferred
         if (isCommand && !interaction.deferred && !interaction.replied) {
             await interaction.deferReply();
         } else if (interaction.isButton() && !interaction.deferred && !interaction.replied) {
@@ -1730,10 +1729,33 @@ async function getTopActivityPlayers(interaction, page = 1) {
         }
 
         const topActivityCollection = db.collection('topactivity');
+        const allPlayers = await topActivityCollection.find().toArray();
+
+        if (allPlayers.length === 0) {
+            const msg = '❌ No player activity data found.';
+            if (isCommand) {
+                if (!interaction.replied) await interaction.editReply(msg);
+            } else {
+                await interaction.followUp({ content: msg, ephemeral: true });
+            }
+            return;
+        }
+
+        // Keep only highest score per player name (case-insensitive)
+        const highestPlayersMap = {};
+        allPlayers.forEach(player => {
+            const nameKey = player.name.toLowerCase();
+            if (!highestPlayersMap[nameKey] || player.score > highestPlayersMap[nameKey].score) {
+                highestPlayersMap[nameKey] = player;
+            }
+        });
+
+        // Convert to array and sort by score descending
+        const mergedPlayers = Object.values(highestPlayersMap).sort((a, b) => b.score - a.score);
+
         const limit = 10;
         const skip = (page - 1) * limit;
-
-        const topPlayers = await topActivityCollection.find().sort({ score: -1 }).skip(skip).limit(limit).toArray();
+        const topPlayers = mergedPlayers.slice(skip, skip + limit);
 
         if (topPlayers.length === 0) {
             const msg = '❌ No player activity data found.';
@@ -1773,17 +1795,12 @@ async function getTopActivityPlayers(interaction, page = 1) {
                 .setDisabled(page === 2)
         );
 
-        if (isCommand) {
+        if (interaction.isButton() && ['next', 'prev'].includes(interaction.customId.split('_')[0])) {
+            await interaction.update({ embeds: [embed], components: [row] });
+        } else if (isCommand) {
             if (!interaction.replied) {
                 await interaction.editReply({ embeds: [embed], components: [row] });
             } else {
-                await interaction.followUp({ embeds: [embed], components: [row], ephemeral: false });
-            }
-        } else if (interaction.isButton()) {
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.update({ embeds: [embed], components: [row] });
-            } else {
-                // Already deferred, use followUp to prevent errors
                 await interaction.followUp({ embeds: [embed], components: [row], ephemeral: false });
             }
         }
@@ -1792,7 +1809,7 @@ async function getTopActivityPlayers(interaction, page = 1) {
         console.error('TopActivity error:', err);
         try {
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: '⚠️ Error fetching top activity players.', ephemeral:false });
+                await interaction.reply({ content: '⚠️ Error fetching top activity players.', ephemeral: false });
             } else {
                 await interaction.followUp({ content: '⚠️ Error fetching top activity players.', ephemeral: false });
             }
@@ -1800,17 +1817,20 @@ async function getTopActivityPlayers(interaction, page = 1) {
     }
 }
 
+
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
     const [action, currentPage] = interaction.customId.split('_');
-    let page = parseInt(currentPage);
+    if (!['next', 'prev'].includes(action)) return; // ignore other buttons
 
+    let page = parseInt(currentPage);
     page = action === 'next' ? page + 1 : page - 1;
-    page = Math.max(1, Math.min(page, 2)); // Limit to 2 pages
+    page = Math.max(1, Math.min(page, 2)); // limit to 2 pages
 
     await getTopActivityPlayers(interaction, page);
 });
+
 
 async function getServerIP(interaction) {
     const embed = new EmbedBuilder()
