@@ -1796,14 +1796,17 @@ async function getTopActivityPlayers(interaction, page = 1) {
         );
 
         if (interaction.isButton() && ['next', 'prev'].includes(interaction.customId.split('_')[0])) {
-            await interaction.update({ embeds: [embed], components: [row] });
-        } else if (isCommand) {
-            if (!interaction.replied) {
-                await interaction.editReply({ embeds: [embed], components: [row] });
-            } else {
-                await interaction.followUp({ embeds: [embed], components: [row], ephemeral: false });
-            }
-        }
+    // Directly update the message, no need to defer
+    await interaction.update({ embeds: [embed], components: [row] });
+} else if (isCommand) {
+    // Normal command handling
+    if (!interaction.replied) {
+        await interaction.editReply({ embeds: [embed], components: [row] });
+    } else {
+        await interaction.followUp({ embeds: [embed], components: [row], ephemeral: false });
+    }
+}
+
 
     } catch (err) {
         console.error('TopActivity error:', err);
