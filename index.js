@@ -1359,7 +1359,7 @@ function buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, is
             },
             {
                 name: 'vMC IP',
-                value: `\`\`\`\nplay.jinxko.com\nindia.jinxko.com:25590\ntramway.proxy.rlwy.net:19431\`\`\``,
+                value: `\`\`\`\nplay.jinxko.com\nindia.jinxko.com:25590\`\`\``,
                 inline: false
             },
             {
