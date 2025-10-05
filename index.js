@@ -56,7 +56,24 @@ client.on('ready', async () => {
     } catch (err) {
         console.error('❌ MongoDB connection failed:', err);
     }
+
+    // Reply to the new specific message with a GIF
+    try {
+        const channelId = '1414519948801347625'; // channel containing the message
+        const messageId = '1424331882513956874'; // message to reply to
+
+        const channel = await client.channels.fetch(channelId);
+
+        if (channel && channel.isTextBased()) {
+            const message = await channel.messages.fetch(messageId);
+            await message.reply('https://tenor.com/view/doctor-strange-zombie-strange-zombie-wake-up-wake-gif-26032279');
+            console.log('✅ GIF replied successfully!');
+        }
+    } catch (err) {
+        console.error('❌ Failed to reply with GIF:', err);
+    }
 });
+
 
 // Escape regex to prevent issues with special characters
 function escapeRegex(string) {
