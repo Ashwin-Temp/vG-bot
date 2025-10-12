@@ -777,7 +777,7 @@ async function handleMcTop(interaction) {
     // 🟧 Other leaderboard categories
     let apiRes;
     try {
-      apiRes = await axios.get('https://www.jinxko.com/api?endpoint=public/playerRoster');
+      apiRes = await axios.get('https://www.jinxko.com:8080/api?endpoint=public/playerRoster');
     } catch (err) {
       console.error("Error fetching player roster:", err);
       return interaction.followUp("⚠️ Failed to fetch player data.");
