@@ -487,7 +487,7 @@ if (WRONG_CHANNELS.includes(channelId) && (isPlayer || isVMC)) {
         { role: 'system', content: 'You are a helpful Discord assistant.' },
         { role: 'user', content: `Someone typed ${isPlayer ? '/players' : '/vmc'} in the wrong channel. ` +
           `The players currently online are: ${playerNamesText}. ` +
-          `Politely tell them to use the command section next time. Keep the response short yet contain all the information.` }
+          `Politely tell the one who typed the command to use the command section next time. Keep the response short yet contain all the information.` }
       ];
 
       const aiResponse = await axios.post(
