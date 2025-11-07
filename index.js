@@ -118,17 +118,17 @@ client.on('interactionCreate', async (interaction) => {
     case 'help': await sendHelpEmbed(interaction); break;
     case 'top': await getTop(interaction); break;
     case 'spark': await sparkCommand(interaction); break;
-    case 'mcspark': await vmcSparkCommand(interaction); break;
+    //case 'mcspark': await vmcSparkCommand(interaction); break;
     case 'cri': await handleCriCommand(interaction); break;
     case 'playtime': await getPlaytime(interaction); break;
     case 'highscore': await getTopActivityPlayers(interaction); break;
-    case 'set': await setNameAndMergePlaytime(interaction); break;
-    case 'vmc': await getMinecraftPlayers(interaction); break;
+    //case 'set': await setNameAndMergePlaytime(interaction); break;
+    //case 'vmc': await getMinecraftPlayers(interaction); break;
     case 'trend': await trendCommand(interaction); break;
     case 'chat': await chatCommand(interaction); break;
-    case 'mcstats': await getMcstats(interaction); break;
-    case 'vmcname': await setMcname(interaction); break;
-    case 'mctop': await handleMcTop(interaction); break;
+    //case 'mcstats': await getMcstats(interaction); break;
+    //case 'vmcname': await setMcname(interaction); break;
+    //case 'mctop': await handleMcTop(interaction); break;
     case 'vgen': await vgenCommand(interaction); break;
     case 'botstats': await botStatsCommand(interaction, db); break;
     // In your index.js, inside the interaction listener...
@@ -271,68 +271,68 @@ async function botStatsCommand(interaction, db) {
 
 
 
-async function vmcSparkCommand(interaction) {
-  const playerName = interaction.options.getString('player')?.toLowerCase();
-  const userId = interaction.user.id;
-  const channelId = interaction.channel.id;
+// async function vmcSparkCommand(interaction) {
+//   const playerName = interaction.options.getString('player')?.toLowerCase();
+//   const userId = interaction.user.id;
+//   const channelId = interaction.channel.id;
 
-  if (!playerName) {
-    return interaction.reply('❌ Please provide the player name like `/mcspark [player]`!');
-  }
+//   if (!playerName) {
+//     return interaction.reply('❌ Please provide the player name like `/mcspark [player]`!');
+//   }
 
-  let deferred = false;
+//   let deferred = false;
 
-  try {
-    await interaction.deferReply();
-    deferred = true;
+//   try {
+//     await interaction.deferReply();
+//     deferred = true;
 
-    const collection = db.collection(config.VMCSPARK_COLLECTION);
-    const alreadyTracking = await collection.findOne({ playerName, userId });
+//     const collection = db.collection(config.VMCSPARK_COLLECTION);
+//     const alreadyTracking = await collection.findOne({ playerName, userId });
 
-    if (alreadyTracking) {
-      return interaction.editReply(`⚠️ You’ve already sparked **${playerName}** for Minecraft.\nYou'll be notified when they join! ⛏️`);
-    }
+//     if (alreadyTracking) {
+//       return interaction.editReply(`⚠️ You’ve already sparked **${playerName}** for Minecraft.\nYou'll be notified when they join! ⛏️`);
+//     }
 
-    const now = new Date();
-    const unix = Math.floor(now.getTime() / 1000);
+//     const now = new Date();
+//     const unix = Math.floor(now.getTime() / 1000);
 
-    await collection.insertOne({
-      playerName,
-      userId,
-      channelId,
-      createdAt: now,
-      notified: false
-    });
+//     await collection.insertOne({
+//       playerName,
+//       userId,
+//       channelId,
+//       createdAt: now,
+//       notified: false
+//     });
 
-    const embed = new EmbedBuilder()
-      .setTitle('ㅤㅤㅤㅤㅤVMC Spark ⛏️\n')
-      .setDescription(`\n You’ll be notified when **${playerName}** joins the VMC server!`)
-      .addFields({
-        name: ``,
-        value: `⏱️ Time of Request: <t:${unix}:F>`,
-        inline: false
-      })
-      .setColor('Yellow')
-      .setFooter({
-        text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
-        iconURL: interaction.user.displayAvatarURL()
-      })
-      .setTimestamp();
+//     const embed = new EmbedBuilder()
+//       .setTitle('ㅤㅤㅤㅤㅤVMC Spark ⛏️\n')
+//       .setDescription(`\n You’ll be notified when **${playerName}** joins the VMC server!`)
+//       .addFields({
+//         name: ``,
+//         value: `⏱️ Time of Request: <t:${unix}:F>`,
+//         inline: false
+//       })
+//       .setColor('Yellow')
+//       .setFooter({
+//         text: `Requested by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
+//         iconURL: interaction.user.displayAvatarURL()
+//       })
+//       .setTimestamp();
 
-    return interaction.editReply({ embeds: [embed] });
+//     return interaction.editReply({ embeds: [embed] });
 
-  } catch (err) {
-    console.error("❌ Error in /mcspark command:", err);
-    if (deferred) {
-      return interaction.editReply('❌ Something went wrong while processing your Minecraft spark. Please try again later.');
-    } else {
-      return interaction.reply({
-        content: '❌ Failed to process your spark request. Try again.',
-        ephemeral: true
-      }).catch(() => {});
-    }
-  }
-}
+//   } catch (err) {
+//     console.error("❌ Error in /mcspark command:", err);
+//     if (deferred) {
+//       return interaction.editReply('❌ Something went wrong while processing your Minecraft spark. Please try again later.');
+//     } else {
+//       return interaction.reply({
+//         content: '❌ Failed to process your spark request. Try again.',
+//         ephemeral: true
+//       }).catch(() => {});
+//     }
+//   }
+// }
 
 
 // Reusable SAMP query function
@@ -357,22 +357,6 @@ async function querySAMP() {
       if (i === 2) throw err;
       await new Promise(res => setTimeout(res, 500)); // wait before retry
     }
-  }
-}
-
-
-async function getMinecraftPlayersList() {
-  try {
-    const res = await axios.get('https://api.mcsrvstat.us/3/play.jinxko.com:25566');
-    const data = res.data;
-
-    if (!data || !data.players) return [];
-
-    // Normalize objects to strings
-    return (data.players.list || []).map(p => typeof p === "string" ? p : p.name);
-  } catch (err) {
-    console.error('Error fetching Minecraft players:', err.message);
-    return [];
   }
 }
 
@@ -409,9 +393,11 @@ async function handleCommand(isPlayer, interaction, db) {
     { upsert: true }
   );
 
-  return isPlayer
-    ? getPlayers(interaction)
-    : getMinecraftPlayers(interaction);
+  if (isPlayer) {
+    return getPlayers(interaction);
+  } else {
+    return interaction.followUp("Pure Silence");
+  }
 }
 
 
@@ -471,11 +457,8 @@ if (WRONG_CHANNELS.includes(channelId) && (isPlayer || isVMC)) {
         return; // fail silently
       }
     } else if (isVMC) {
-      try {
-        playerNames = await getMinecraftPlayersList();
-      } catch {
-        return; // fail silently
-      }
+      await message.reply("Pure Silence");
+        return;
     }
 
     const playerNamesText = playerNames.length > 0
@@ -706,352 +689,352 @@ async function generateImage(prompt, interaction) {
 }
 
 
-async function handleMcTop(interaction) {
-  const category = (interaction.options.getString('category') || '').toLowerCase();
+// async function handleMcTop(interaction) {
+//   const category = (interaction.options.getString('category') || '').toLowerCase();
 
-  const titleMap = {
-    playtime: 'ㅤㅤㅤㅤ🕒 Top AFK Warriors 🕒',
-    rich: 'ㅤㅤㅤㅤ💰 Top Players to Donate 💰',
-    death: 'ㅤㅤㅤㅤ☠️ Most Visits to God ☠️',
-    today: '🏆 Top vMC Players Today'
-  };
+//   const titleMap = {
+//     playtime: 'ㅤㅤㅤㅤ🕒 Top AFK Warriors 🕒',
+//     rich: 'ㅤㅤㅤㅤ💰 Top Players to Donate 💰',
+//     death: 'ㅤㅤㅤㅤ☠️ Most Visits to God ☠️',
+//     today: '🏆 Top vMC Players Today'
+//   };
 
-  try {
-    await interaction.deferReply();
+//   try {
+//     await interaction.deferReply();
 
-    // 🟢 Today leaderboard
-    if (category === 'today') {
-      let response;
-      try {
-        response = await axios.get("https://my-worker-v2.valiantgaming.workers.dev/get");
-      } catch (apiErr) {
-        console.error("Error fetching from /get:", apiErr);
-        return interaction.followUp("⚠️ Failed to fetch playtime data.");
-      }
+//     // 🟢 Today leaderboard
+//     if (category === 'today') {
+//       let response;
+//       try {
+//         response = await axios.get("https://my-worker-v2.valiantgaming.workers.dev/get");
+//       } catch (apiErr) {
+//         console.error("Error fetching from /get:", apiErr);
+//         return interaction.followUp("⚠️ Failed to fetch playtime data.");
+//       }
 
-      let data = response.data;
-      if (typeof data === 'string') {
-        try { data = JSON.parse(data); } catch (err) {
-          console.error("Error parsing JSON:", err);
-          return interaction.followUp("⚠️ Failed to parse playtime data.");
-        }
-      }
+//       let data = response.data;
+//       if (typeof data === 'string') {
+//         try { data = JSON.parse(data); } catch (err) {
+//           console.error("Error parsing JSON:", err);
+//           return interaction.followUp("⚠️ Failed to parse playtime data.");
+//         }
+//       }
 
-      if (!data || Object.keys(data).length === 0) {
-        return interaction.followUp('❌ No playtime recorded for today.');
-      }
+//       if (!data || Object.keys(data).length === 0) {
+//         return interaction.followUp('❌ No playtime recorded for today.');
+//       }
 
-      const playersArray = Object.entries(data).map(([username, stats]) => {
-        const match = stats.playtime.match(/(\d+)h (\d+)m/);
-        const mins = match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
-        return { username, ...stats, totalMinutes: mins };
-      });
+//       const playersArray = Object.entries(data).map(([username, stats]) => {
+//         const match = stats.playtime.match(/(\d+)h (\d+)m/);
+//         const mins = match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
+//         return { username, ...stats, totalMinutes: mins };
+//       });
 
-      const sorted = playersArray.sort((a, b) => b.totalMinutes - a.totalMinutes).slice(0, 10);
+//       const sorted = playersArray.sort((a, b) => b.totalMinutes - a.totalMinutes).slice(0, 10);
 
-      let leaderboard = '```md\n';
-      sorted.forEach((player, index) => {
-        leaderboard += `#${String(index + 1).padEnd(2)} ${player.username.padEnd(16)} : ${player.playtime}${player.isOnline ? ' 🟡' : ''}\n`;
-      });
-      leaderboard += '```';
+//       let leaderboard = '```md\n';
+//       sorted.forEach((player, index) => {
+//         leaderboard += `#${String(index + 1).padEnd(2)} ${player.username.padEnd(16)} : ${player.playtime}${player.isOnline ? ' 🟡' : ''}\n`;
+//       });
+//       leaderboard += '```';
 
-      const showDotNote = sorted.some(p => p.isOnline);
+//       const showDotNote = sorted.some(p => p.isOnline);
 
-      const embed = new EmbedBuilder()
-        .setTitle('ㅤㅤ✦✦ ValiantMC [1.21+] ✦✦')
-        .setColor('#39FF14')
-        .setDescription([
-          `**${titleMap.today}**`,
-          leaderboard,
-          ...(showDotNote ? ['ㅤ🟡 Playtime updates after logout.'] : [])
-        ].join('\n'))
-        .setFooter({
-          text: `Requested by ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
-          iconURL: interaction.user.displayAvatarURL()
-        })
-        .setTimestamp();
+//       const embed = new EmbedBuilder()
+//         .setTitle('ㅤㅤ✦✦ ValiantMC [1.21+] ✦✦')
+//         .setColor('#39FF14')
+//         .setDescription([
+//           `**${titleMap.today}**`,
+//           leaderboard,
+//           ...(showDotNote ? ['ㅤ🟡 Playtime updates after logout.'] : [])
+//         ].join('\n'))
+//         .setFooter({
+//           text: `Requested by ${interaction.member?.displayName || interaction.user.username}\nMade with ✨`,
+//           iconURL: interaction.user.displayAvatarURL()
+//         })
+//         .setTimestamp();
 
-      return interaction.followUp({ embeds: [embed] });
-    }
+//       return interaction.followUp({ embeds: [embed] });
+//     }
 
-    // 🟧 Other leaderboard categories
-    let apiRes;
-    try {
-      apiRes = await axios.get('https://www.jinxko.com:8080/api?endpoint=public/playerRoster');
-    } catch (err) {
-      console.error("Error fetching player roster:", err);
-      return interaction.followUp("⚠️ Failed to fetch player data.");
-    }
+//     // 🟧 Other leaderboard categories
+//     let apiRes;
+//     try {
+//       apiRes = await axios.get('https://www.jinxko.com:8080/api?endpoint=public/playerRoster');
+//     } catch (err) {
+//       console.error("Error fetching player roster:", err);
+//       return interaction.followUp("⚠️ Failed to fetch player data.");
+//     }
 
-    const roster = apiRes.data.roster;
-    if (!roster || roster.length === 0) {
-      return interaction.followUp('❌ No player data found.');
-    }
+//     const roster = apiRes.data.roster;
+//     if (!roster || roster.length === 0) {
+//       return interaction.followUp('❌ No player data found.');
+//     }
 
-    let sorted = [];
-    if (category === 'death') {
-      sorted = roster.sort((a, b) => b.deaths - a.deaths);
-    } else if (category === 'rich') {
-      sorted = roster.sort((a, b) => b.balance - a.balance);
-    } else if (category === 'playtime') {
-      sorted = roster.sort((a, b) => parseTime(b.timePlayed) - parseTime(a.timePlayed));
-    } else {
-      return interaction.followUp('❌ Invalid category.');
-    }
+//     let sorted = [];
+//     if (category === 'death') {
+//       sorted = roster.sort((a, b) => b.deaths - a.deaths);
+//     } else if (category === 'rich') {
+//       sorted = roster.sort((a, b) => b.balance - a.balance);
+//     } else if (category === 'playtime') {
+//       sorted = roster.sort((a, b) => parseTime(b.timePlayed) - parseTime(a.timePlayed));
+//     } else {
+//       return interaction.followUp('❌ Invalid category.');
+//     }
 
-    const top10 = sorted.slice(0, 10);
-    const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅'];
+//     const top10 = sorted.slice(0, 10);
+//     const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅'];
 
-    const lines = top10.map((p, i) => {
-      const name = p.username.length > 15 ? p.username.slice(0, 14) + '…' : p.username.padEnd(15);
-      let value = '';
-      if (category === 'death') value = `${p.deaths}`;
-      if (category === 'rich') value = `$ ${Math.floor(p.balance).toLocaleString()}`;
-      if (category === 'playtime') value = formatPlaytime(p.timePlayed);
-      return `${medals[i] || '➖'} ${name} : ${value}`;
-    });
+//     const lines = top10.map((p, i) => {
+//       const name = p.username.length > 15 ? p.username.slice(0, 14) + '…' : p.username.padEnd(15);
+//       let value = '';
+//       if (category === 'death') value = `${p.deaths}`;
+//       if (category === 'rich') value = `$ ${Math.floor(p.balance).toLocaleString()}`;
+//       if (category === 'playtime') value = formatPlaytime(p.timePlayed);
+//       return `${medals[i] || '➖'} ${name} : ${value}`;
+//     });
 
-    const leaderboard = ['```', ...lines, '```'].join('\n');
+//     const leaderboard = ['```', ...lines, '```'].join('\n');
 
-    const embed = new EmbedBuilder()
-      .setTitle(`ㅤㅤㅤ✦✦ ValiantMC [1.21+] ✦✦`)
-      .setColor('#39FF14')
-      .setDescription([
-        `**${titleMap[category]}**`,
-        leaderboard,
-        `_Updated: ${new Date().toLocaleDateString('en-GB')}_`
-      ].join('\n'))
-      .setFooter({
-        text: `Requested by ${interaction.member?.displayName || interaction.user.username}\n• Made with ✨`,
-        iconURL: interaction.user.displayAvatarURL()
-      })
-      .setTimestamp();
+//     const embed = new EmbedBuilder()
+//       .setTitle(`ㅤㅤㅤ✦✦ ValiantMC [1.21+] ✦✦`)
+//       .setColor('#39FF14')
+//       .setDescription([
+//         `**${titleMap[category]}**`,
+//         leaderboard,
+//         `_Updated: ${new Date().toLocaleDateString('en-GB')}_`
+//       ].join('\n'))
+//       .setFooter({
+//         text: `Requested by ${interaction.member?.displayName || interaction.user.username}\n• Made with ✨`,
+//         iconURL: interaction.user.displayAvatarURL()
+//       })
+//       .setTimestamp();
 
-    return interaction.followUp({ embeds: [embed] });
+//     return interaction.followUp({ embeds: [embed] });
 
-  } catch (err) {
-    console.error('Fatal error in /mctop:', err);
+//   } catch (err) {
+//     console.error('Fatal error in /mctop:', err);
 
-    try {
-      if (interaction.deferred || interaction.replied) {
-        await interaction.followUp("⚠️ An error occurred while processing your request.");
-      } else {
-        await interaction.reply("⚠️ An error occurred while processing your request.");
-      }
-    } catch (innerErr) {
-      console.error("Error replying to Discord:", innerErr);
-    }
-  }
-}
+//     try {
+//       if (interaction.deferred || interaction.replied) {
+//         await interaction.followUp("⚠️ An error occurred while processing your request.");
+//       } else {
+//         await interaction.reply("⚠️ An error occurred while processing your request.");
+//       }
+//     } catch (innerErr) {
+//       console.error("Error replying to Discord:", innerErr);
+//     }
+//   }
+// }
 
-// Helpers
-function parseTime(str) {
-  const regex = /(?:(\d+)d)?\s*(?:(\d+)h)?\s*(?:(\d+)m)?/;
-  const [, d = 0, h = 0, m = 0] = str.match(regex).map(Number);
-  return d * 86400 + h * 3600 + m * 60;
-}
+// // Helpers
+// function parseTime(str) {
+//   const regex = /(?:(\d+)d)?\s*(?:(\d+)h)?\s*(?:(\d+)m)?/;
+//   const [, d = 0, h = 0, m = 0] = str.match(regex).map(Number);
+//   return d * 86400 + h * 3600 + m * 60;
+// }
 
-function formatPlaytime(playtimeStr) {
-  let days = 0, hours = 0, minutes = 0;
-  const dayMatch = playtimeStr.match(/(\d+)d/);
-  const hourMatch = playtimeStr.match(/(\d+)h/);
-  const minMatch = playtimeStr.match(/(\d+)m/);
+// function formatPlaytime(playtimeStr) {
+//   let days = 0, hours = 0, minutes = 0;
+//   const dayMatch = playtimeStr.match(/(\d+)d/);
+//   const hourMatch = playtimeStr.match(/(\d+)h/);
+//   const minMatch = playtimeStr.match(/(\d+)m/);
 
-  if (dayMatch) days = parseInt(dayMatch[1], 10);
-  if (hourMatch) hours = parseInt(hourMatch[1], 10);
-  if (minMatch) minutes = parseInt(minMatch[1], 10);
+//   if (dayMatch) days = parseInt(dayMatch[1], 10);
+//   if (hourMatch) hours = parseInt(hourMatch[1], 10);
+//   if (minMatch) minutes = parseInt(minMatch[1], 10);
 
-  return `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
-}
-
-
+//   return `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+// }
 
 
-async function getMcstats(interaction) {
-  try {
-    await interaction.deferReply();
 
 
-    const discordId = interaction.user.id;
-    const mcplayersCollection = db.collection('mcplayers');
-    const userRecord = await mcplayersCollection.findOne({ discordId });
-
-    if (!userRecord || !userRecord.mcname) {
-      return interaction.editReply('❌ You have not set your vMC name yet! Use `/vmcname` first.');
-    }
-
-    const mcname = userRecord.mcname;
-
-    // Fetch roster from API
-    let roster;
-    try {
-      const response = await axios.get('http://www.jinxko.com:8080/api?endpoint=public/playerRoster');
-      roster = response.data.roster;
-    } catch (err) {
-      console.error('API fetch error:', err);
-      return interaction.editReply('❌ Failed to fetch Minecraft players data. Try again later.');
-    }
-
-    // Find the player in roster
-    const player = roster.find(p => p.username.toLowerCase() === mcname.toLowerCase());
-
-    if (!player) {
-      return interaction.editReply(`❌ No stats found for Minecraft name **${mcname}**.`);
-    }
-
-    // Build embed
-    const embed = new EmbedBuilder()
-  .setTitle(`ㅤ✦✦ Valiant Minecraft [1.21+] ✦✦ \n${player.username} Stats`)
-  .setColor('Blue')
-    .addFields(
-  {
-    name: '💸 Balanceㅤㅤ',
-    value: `\`\`\`€ ${player.balance.toFixed(2)}\`\`\``,
-    inline: true
-  },
-  {
-    name: '🕹️ Is Playingㅤㅤ',
-    value: `\`\`\`${player.isOnline ? '🟢 Online' : '🔴 Offline'}\`\`\``,
-    inline: true
-  },
-  {
-    name: '☠️ Deathsㅤㅤ',
-    value: `\`\`\`${player.deaths}\`\`\``,
-    inline: true
-  },
-  {
-    name: '⏳ Time Played',
-    value: `\`\`\`${player.timePlayed}\`\`\``,
-    inline: false
-  },
-  {
-    name: 'ㅤㅤ',
-    value: ` **❤️‍🔥 vMC Streak:** ${player.consecutiveLoginDays} day(s)\n🕒 Last Login: <t:${Math.floor(new Date(player.lastLoginDate).getTime() / 1000)}:R>`,
-    inline: true
-  }
-    )
+// async function getMcstats(interaction) {
+//   try {
+//     await interaction.deferReply();
 
 
-  .setFooter({
-                text: `Requested by ${interaction.member?.displayName || interaction.user.username} as  ${player.username} \nMade with ✨`,
-                iconURL: interaction.user.displayAvatarURL()
-            })
-  .setTimestamp();
+//     const discordId = interaction.user.id;
+//     const mcplayersCollection = db.collection('mcplayers');
+//     const userRecord = await mcplayersCollection.findOne({ discordId });
 
-    return interaction.editReply({ embeds: [embed] });
+//     if (!userRecord || !userRecord.mcname) {
+//       return interaction.editReply('❌ You have not set your vMC name yet! Use `/vmcname` first.');
+//     }
 
-  } catch (err) {
-    console.error("❌ Error handling interaction:", err);
-    if (!interaction.replied && !interaction.deferred) {
-      return interaction.reply({ content: "❌ Something went wrong while fetching stats."});
-    }
-  }
-}
+//     const mcname = userRecord.mcname;
 
+//     // Fetch roster from API
+//     let roster;
+//     try {
+//       const response = await axios.get('http://www.jinxko.com:8080/api?endpoint=public/playerRoster');
+//       roster = response.data.roster;
+//     } catch (err) {
+//       console.error('API fetch error:', err);
+//       return interaction.editReply('❌ Failed to fetch Minecraft players data. Try again later.');
+//     }
 
-let mcRosterCache = {
-  data: [],        // will hold { username, uuid } objects only
-  lastFetch: 0     // timestamp to track cache freshness
-};
+//     // Find the player in roster
+//     const player = roster.find(p => p.username.toLowerCase() === mcname.toLowerCase());
 
-async function fetchAndCacheRoster() {
-  const now = Date.now();
-  // Cache duration: 1 minute (60000 ms)
-  if (now - mcRosterCache.lastFetch < 60000 && mcRosterCache.data.length > 0) {
-    // Return cached data if valid
-    return mcRosterCache.data;
-  }
+//     if (!player) {
+//       return interaction.editReply(`❌ No stats found for Minecraft name **${mcname}**.`);
+//     }
 
-  try {
-    const response = await axios.get('http://www.jinxko.com:8080/api?endpoint=public/playerRoster');
-    const roster = response.data.roster;
-
-    // Filter only username and uuid
-    mcRosterCache.data = roster.map(player => ({
-      username: player.username,
-      uuid: player.uuid
-    }));
-
-    mcRosterCache.lastFetch = now;
-    return mcRosterCache.data;
-
-  } catch (error) {
-    console.error('API fetch error:', error);
-    throw error;
-  }
-}
-
-
-async function setMcname(interaction) {
-  const mcname = interaction.options.getString('vmc-name').trim();
-  const discordId = interaction.user.id;
-
-  await interaction.deferReply();
-
-  let roster;
-  try {
-    roster = await fetchAndCacheRoster(); // cache returns only uuid & username
-  } catch {
-    return interaction.editReply('❌ Failed to fetch Minecraft players. Please try again later.');
-  }
-
-  const rosterMap = new Map(roster.map(p => [p.username.toLowerCase(), p]));
-  const matched = rosterMap.get(mcname.toLowerCase());
-
-  if (!matched) {
-    return interaction.editReply(`❌ No player found with the Minecraft name **${mcname}**.`);
-  }
-
-  const { uuid, username } = matched;
-
-  try {
-    const mcplayersCollection = db.collection('mcplayers');
-    const userDoc = await mcplayersCollection.findOne({ discordId });
-    const retryCount = userDoc?.retry || 0;
-
-  if (retryCount >= 3) {
-  const limitEmbed = new EmbedBuilder()
-    .setTitle('⚠️ Name Change Limit Reached')
-    .setDescription("```\n❌ You have reached the maximum of 3 vMC name changes.\n\nIf you need to update it again, please contact the Staff.\n```")
-    .setColor('#FF0000')
-    .setFooter({
-        text: `Set by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
-        iconURL: interaction.user.displayAvatarURL()
-      })
-    .setTimestamp();
-
-  return interaction.editReply({ embeds: [limitEmbed] });
-}
+//     // Build embed
+//     const embed = new EmbedBuilder()
+//   .setTitle(`ㅤ✦✦ Valiant Minecraft [1.21+] ✦✦ \n${player.username} Stats`)
+//   .setColor('Blue')
+//     .addFields(
+//   {
+//     name: '💸 Balanceㅤㅤ',
+//     value: `\`\`\`€ ${player.balance.toFixed(2)}\`\`\``,
+//     inline: true
+//   },
+//   {
+//     name: '🕹️ Is Playingㅤㅤ',
+//     value: `\`\`\`${player.isOnline ? '🟢 Online' : '🔴 Offline'}\`\`\``,
+//     inline: true
+//   },
+//   {
+//     name: '☠️ Deathsㅤㅤ',
+//     value: `\`\`\`${player.deaths}\`\`\``,
+//     inline: true
+//   },
+//   {
+//     name: '⏳ Time Played',
+//     value: `\`\`\`${player.timePlayed}\`\`\``,
+//     inline: false
+//   },
+//   {
+//     name: 'ㅤㅤ',
+//     value: ` **❤️‍🔥 vMC Streak:** ${player.consecutiveLoginDays} day(s)\n🕒 Last Login: <t:${Math.floor(new Date(player.lastLoginDate).getTime() / 1000)}:R>`,
+//     inline: true
+//   }
+//     )
 
 
-    // Update name and increase retry
-    await mcplayersCollection.updateOne(
-      { discordId },
-      { $set: { mcname: username, uuid }, $inc: { retry: 1 } },
-      { upsert: true }
-    );
+//   .setFooter({
+//                 text: `Requested by ${interaction.member?.displayName || interaction.user.username} as  ${player.username} \nMade with ✨`,
+//                 iconURL: interaction.user.displayAvatarURL()
+//             })
+//   .setTimestamp();
 
-    const embed = new EmbedBuilder()
-      .setTitle('✨ ValiantMC ✨')
-      .setDescription(`Your vMC name has been successfully linked!`)
-      .addFields(
-        { name: '', value: `\`\`\`\nvMC Name: ${username}\n\`\`\``, inline: false },
-        { name: '', value: `**Change Attempts:** ${retryCount + 1}/3`, inline: false }
-      )
-      .setFooter({
-        text: `Set by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
-        iconURL: interaction.user.displayAvatarURL()
-      })
-      .setColor('#800080')
-      .setTimestamp();
+//     return interaction.editReply({ embeds: [embed] });
 
-    return interaction.editReply({ embeds: [embed] });
+//   } catch (err) {
+//     console.error("❌ Error handling interaction:", err);
+//     if (!interaction.replied && !interaction.deferred) {
+//       return interaction.reply({ content: "❌ Something went wrong while fetching stats."});
+//     }
+//   }
+// }
 
-  } catch (err) {
-    console.error('MongoDB error:', err);
-    return interaction.editReply('❌ Database error. Please try again later.');
-  }
-}
+
+// let mcRosterCache = {
+//   data: [],        // will hold { username, uuid } objects only
+//   lastFetch: 0     // timestamp to track cache freshness
+// };
+
+// async function fetchAndCacheRoster() {
+//   const now = Date.now();
+//   // Cache duration: 1 minute (60000 ms)
+//   if (now - mcRosterCache.lastFetch < 60000 && mcRosterCache.data.length > 0) {
+//     // Return cached data if valid
+//     return mcRosterCache.data;
+//   }
+
+//   try {
+//     const response = await axios.get('http://www.jinxko.com:8080/api?endpoint=public/playerRoster');
+//     const roster = response.data.roster;
+
+//     // Filter only username and uuid
+//     mcRosterCache.data = roster.map(player => ({
+//       username: player.username,
+//       uuid: player.uuid
+//     }));
+
+//     mcRosterCache.lastFetch = now;
+//     return mcRosterCache.data;
+
+//   } catch (error) {
+//     console.error('API fetch error:', error);
+//     throw error;
+//   }
+// }
+
+
+// async function setMcname(interaction) {
+//   const mcname = interaction.options.getString('vmc-name').trim();
+//   const discordId = interaction.user.id;
+
+//   await interaction.deferReply();
+
+//   let roster;
+//   try {
+//     roster = await fetchAndCacheRoster(); // cache returns only uuid & username
+//   } catch {
+//     return interaction.editReply('❌ Failed to fetch Minecraft players. Please try again later.');
+//   }
+
+//   const rosterMap = new Map(roster.map(p => [p.username.toLowerCase(), p]));
+//   const matched = rosterMap.get(mcname.toLowerCase());
+
+//   if (!matched) {
+//     return interaction.editReply(`❌ No player found with the Minecraft name **${mcname}**.`);
+//   }
+
+//   const { uuid, username } = matched;
+
+//   try {
+//     const mcplayersCollection = db.collection('mcplayers');
+//     const userDoc = await mcplayersCollection.findOne({ discordId });
+//     const retryCount = userDoc?.retry || 0;
+
+//   if (retryCount >= 3) {
+//   const limitEmbed = new EmbedBuilder()
+//     .setTitle('⚠️ Name Change Limit Reached')
+//     .setDescription("```\n❌ You have reached the maximum of 3 vMC name changes.\n\nIf you need to update it again, please contact the Staff.\n```")
+//     .setColor('#FF0000')
+//     .setFooter({
+//         text: `Set by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
+//         iconURL: interaction.user.displayAvatarURL()
+//       })
+//     .setTimestamp();
+
+//   return interaction.editReply({ embeds: [limitEmbed] });
+// }
+
+
+//     // Update name and increase retry
+//     await mcplayersCollection.updateOne(
+//       { discordId },
+//       { $set: { mcname: username, uuid }, $inc: { retry: 1 } },
+//       { upsert: true }
+//     );
+
+//     const embed = new EmbedBuilder()
+//       .setTitle('✨ ValiantMC ✨')
+//       .setDescription(`Your vMC name has been successfully linked!`)
+//       .addFields(
+//         { name: '', value: `\`\`\`\nvMC Name: ${username}\n\`\`\``, inline: false },
+//         { name: '', value: `**Change Attempts:** ${retryCount + 1}/3`, inline: false }
+//       )
+//       .setFooter({
+//         text: `Set by ${interaction.member?.displayName || interaction.user.username} \nMade with ✨`,
+//         iconURL: interaction.user.displayAvatarURL()
+//       })
+//       .setColor('#800080')
+//       .setTimestamp();
+
+//     return interaction.editReply({ embeds: [embed] });
+
+//   } catch (err) {
+//     console.error('MongoDB error:', err);
+//     return interaction.editReply('❌ Database error. Please try again later.');
+//   }
+// }
 
 
 
@@ -1087,7 +1070,7 @@ You are vG Bot. Your personality is that of a witty, slightly sarcastic, and hum
 
 **Your Knowledge Base (Use only when a prompt is about the server!):**
 - SA-MP IP: 163.172.105.21:7777
-- Minecraft IP: play.jinxko.com (developed by Spencer)
+- Minecraft has been shutdown by the developer Spenecer, it may make a comeback.
 - **vG Staff:** [vG]Axis (Dev Head), [vG]Dylan (Staff Head), [vG]Cruella (Clan/Map Head), [vG]Sheikh (Events Head), [vG]Atk & [vG]Bam (Admins), [vG]Sparkle (Mod & your dev), [vG]Pluto (Trial Mod).
 - **Yakuza:** Led by [VG]Bakondi. They're the nightmare of SAPD, so don't get on their bad side.
 - **SAPD:** Led by [vG]Sheikh. They're the law, even if you think you're too cool for it 😎👮.
@@ -1193,188 +1176,188 @@ client.on('messageCreate', async (message) => {
 });
 
 
-async function getMinecraftPlayers(interaction) {
-    try {
-        await interaction.deferReply();
+// async function getMinecraftPlayers(interaction) {
+//     try {
+//         await interaction.deferReply();
 
-        // 🔹 Primary Cloudflare Worker API
-        const res = await fetch('https://my-worker-v2.valiantgaming.workers.dev/');
-        if (!res.ok) throw new Error(`Worker error ${res.status}`);
-        const { onlinePlayers = [], status } = await res.json();
+//         // 🔹 Primary Cloudflare Worker API
+//         const res = await fetch('https://my-worker-v2.valiantgaming.workers.dev/');
+//         if (!res.ok) throw new Error(`Worker error ${res.status}`);
+//         const { onlinePlayers = [], status } = await res.json();
 
-        const onlineCount = onlinePlayers.length;
-        const maxPlayers = 20;
-        const scoreColumn = 28;
+//         const onlineCount = onlinePlayers.length;
+//         const maxPlayers = 20;
+//         const scoreColumn = 28;
 
-        let playerList = '```🚫 No players online.```';
-        if (onlineCount > 0) {
-            playerList = `\`\`\`\n${onlinePlayers.map((p, i) => {
-                const index = `${i + 1}. `;
-                let name = p.username;
-                if (name.length > 20) name = name.slice(0, 19) + '…';
-                const crown = name.toLowerCase() === 'xloggii' ? '👑' : '';
-                const totalLen = index.length + name.length + crown.length;
-                const spaces = ' '.repeat(Math.max(scoreColumn - totalLen, 1));
-                return `${index}${name}${crown}${spaces}⭐${p.score}`;
-            }).join('\n')}\n\`\`\``;
-        }
+//         let playerList = '```🚫 No players online.```';
+//         if (onlineCount > 0) {
+//             playerList = `\`\`\`\n${onlinePlayers.map((p, i) => {
+//                 const index = `${i + 1}. `;
+//                 let name = p.username;
+//                 if (name.length > 20) name = name.slice(0, 19) + '…';
+//                 const crown = name.toLowerCase() === 'xloggii' ? '👑' : '';
+//                 const totalLen = index.length + name.length + crown.length;
+//                 const spaces = ' '.repeat(Math.max(scoreColumn - totalLen, 1));
+//                 return `${index}${name}${crown}${spaces}⭐${p.score}`;
+//             }).join('\n')}\n\`\`\``;
+//         }
 
-        // 🟢 Build embed with placeholder summary
-        const embed = buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, false);
-        await interaction.editReply({ embeds: [embed] });
+//         // 🟢 Build embed with placeholder summary
+//         const embed = buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, false);
+//         await interaction.editReply({ embeds: [embed] });
 
-        // 🔁 Now fetch activity summary
-        try {
-            const trackRes = await fetch('https://my-worker-v2.valiantgaming.workers.dev/get');
-            const data = await trackRes.json();
-            const entries = Object.entries(data || {});
-            let recentPlayer = null;
-            let mostActive = null;
+//         // 🔁 Now fetch activity summary
+//         try {
+//             const trackRes = await fetch('https://my-worker-v2.valiantgaming.workers.dev/get');
+//             const data = await trackRes.json();
+//             const entries = Object.entries(data || {});
+//             let recentPlayer = null;
+//             let mostActive = null;
 
-            if (entries.length > 0) {
-                // ✅ Most Active (highest playtime)
-                mostActive = entries.sort((a, b) => {
-                    const [aH = 0, aM = 0] = a[1].playtime?.match(/\d+/g)?.map(Number) || [];
-                    const [bH = 0, bM = 0] = b[1].playtime?.match(/\d+/g)?.map(Number) || [];
-                    return (bH * 60 + bM) - (aH * 60 + aM);
-                })[0][0];
+//             if (entries.length > 0) {
+//                 // ✅ Most Active (highest playtime)
+//                 mostActive = entries.sort((a, b) => {
+//                     const [aH = 0, aM = 0] = a[1].playtime?.match(/\d+/g)?.map(Number) || [];
+//                     const [bH = 0, bM = 0] = b[1].playtime?.match(/\d+/g)?.map(Number) || [];
+//                     return (bH * 60 + bM) - (aH * 60 + aM);
+//                 })[0][0];
 
-                // ✅ Most Recent (latest joinedAt)
-                recentPlayer = entries.sort((a, b) => {
-                    const [ah = 0, am = 0] = a[1].joinedAt?.split(':').map(Number) || [];
-                    const [bh = 0, bm = 0] = b[1].joinedAt?.split(':').map(Number) || [];
-                    return (bh * 60 + bm) - (ah * 60 + am);
-                })[0][0];
+//                 // ✅ Most Recent (latest joinedAt)
+//                 recentPlayer = entries.sort((a, b) => {
+//                     const [ah = 0, am = 0] = a[1].joinedAt?.split(':').map(Number) || [];
+//                     const [bh = 0, bm = 0] = b[1].joinedAt?.split(':').map(Number) || [];
+//                     return (bh * 60 + bm) - (ah * 60 + am);
+//                 })[0][0];
 
-                if (interaction.client) {
-                    interaction.client.recentCache = recentPlayer;
-                }
-            } else {
-                // ❌ /get is empty — fallback to API
-                recentPlayer = interaction.client?.recentCache;
+//                 if (interaction.client) {
+//                     interaction.client.recentCache = recentPlayer;
+//                 }
+//             } else {
+//                 // ❌ /get is empty — fallback to API
+//                 recentPlayer = interaction.client?.recentCache;
 
-                if (!recentPlayer) {
-                    const fallbackRes = await fetch('http://jinxko.com:8080/api?endpoint=public/playerRoster');
-                    const rosterJson = await fallbackRes.json();
+//                 if (!recentPlayer) {
+//                     const fallbackRes = await fetch('http://jinxko.com:8080/api?endpoint=public/playerRoster');
+//                     const rosterJson = await fallbackRes.json();
 
-                    if (rosterJson.status === 'success') {
-                        const mostRecent = rosterJson.roster.sort((a, b) =>
-                            new Date(b.lastLoginDate) - new Date(a.lastLoginDate)
-                        )[0];
-                        recentPlayer = mostRecent?.username;
+//                     if (rosterJson.status === 'success') {
+//                         const mostRecent = rosterJson.roster.sort((a, b) =>
+//                             new Date(b.lastLoginDate) - new Date(a.lastLoginDate)
+//                         )[0];
+//                         recentPlayer = mostRecent?.username;
 
-                        if (recentPlayer && interaction.client) {
-                            interaction.client.recentCache = recentPlayer;
-                        }
-                    }
-                }
-            }
+//                         if (recentPlayer && interaction.client) {
+//                             interaction.client.recentCache = recentPlayer;
+//                         }
+//                     }
+//                 }
+//             }
 
-            // 📝 Build summary lines dynamically
-let summaryLines = [];
-if (mostActive) summaryLines.push(`Most Active: ${mostActive}`);
-if (recentPlayer) summaryLines.push(`Recent Player: ${recentPlayer}`);
+//             // 📝 Build summary lines dynamically
+// let summaryLines = [];
+// if (mostActive) summaryLines.push(`Most Active: ${mostActive}`);
+// if (recentPlayer) summaryLines.push(`Recent Player: ${recentPlayer}`);
 
-if (summaryLines.length > 0) {
-    // Replace placeholder
-    embed.data.fields = embed.data.fields.map(f =>
-        f.name === 'Activity Summary'
-            ? {
-                name: 'Activity Summary',
-                value: `\`\`\`\n${summaryLines.join('\n')}\n\`\`\``,
-                inline: false
-              }
-            : f
-    );
-} else {
-    // Remove placeholder if nothing
-    embed.data.fields = embed.data.fields.filter(f => f.name !== 'Activity Summary');
-}
+// if (summaryLines.length > 0) {
+//     // Replace placeholder
+//     embed.data.fields = embed.data.fields.map(f =>
+//         f.name === 'Activity Summary'
+//             ? {
+//                 name: 'Activity Summary',
+//                 value: `\`\`\`\n${summaryLines.join('\n')}\n\`\`\``,
+//                 inline: false
+//               }
+//             : f
+//     );
+// } else {
+//     // Remove placeholder if nothing
+//     embed.data.fields = embed.data.fields.filter(f => f.name !== 'Activity Summary');
+// }
 
 
-            await interaction.editReply({ embeds: [embed] });
+//             await interaction.editReply({ embeds: [embed] });
 
-        } catch (err) {
-            console.warn("Activity summary failed:", err);
-            // ❌ On error → remove placeholder
-            embed.data.fields = embed.data.fields.filter(f => f.name !== 'Activity Summary');
-            await interaction.editReply({ embeds: [embed] });
-        }
+//         } catch (err) {
+//             console.warn("Activity summary failed:", err);
+//             // ❌ On error → remove placeholder
+//             embed.data.fields = embed.data.fields.filter(f => f.name !== 'Activity Summary');
+//             await interaction.editReply({ embeds: [embed] });
+//         }
 
-    } catch (err) {
-        console.warn('Primary API failed, falling back:', err.message);
+//     } catch (err) {
+//         console.warn('Primary API failed, falling back:', err.message);
 
-        // 🔴 Fallback to mcsrvstat.us API
-        try {
-            const res = await fetch('https://api.mcsrvstat.us/3/play.jinxko.com:25566');
-            if (!res.ok) throw new Error(`Fallback API error: ${res.status}`);
-            const data = await res.json();
+//         // 🔴 Fallback to mcsrvstat.us API
+//         try {
+//             const res = await fetch('https://api.mcsrvstat.us/3/play.jinxko.com:25566');
+//             if (!res.ok) throw new Error(`Fallback API error: ${res.status}`);
+//             const data = await res.json();
 
-            const players = data.players?.list || [];
-            const onlineCount = players.length;
-            const maxPlayers = data.players?.max || 20;
+//             const players = data.players?.list || [];
+//             const onlineCount = players.length;
+//             const maxPlayers = data.players?.max || 20;
 
-            let playerList = '```🚫 No players online.```';
-            if (onlineCount > 0) {
-                playerList = `\`\`\`\n${players.map((p, i) => {
-                    const index = `${i + 1}. `;
-                    let name = typeof p === 'string' ? p : p?.name || 'Unknown';
-                    if (name.length > 20) name = name.slice(0, 19) + '…';
-                    const crown = name.toLowerCase() === 'xloggii' ? '👑' : '';
-                    return `${index}${name}${crown}`;
-                }).join('\n')}\n\`\`\``;
-            }
+//             let playerList = '```🚫 No players online.```';
+//             if (onlineCount > 0) {
+//                 playerList = `\`\`\`\n${players.map((p, i) => {
+//                     const index = `${i + 1}. `;
+//                     let name = typeof p === 'string' ? p : p?.name || 'Unknown';
+//                     if (name.length > 20) name = name.slice(0, 19) + '…';
+//                     const crown = name.toLowerCase() === 'xloggii' ? '👑' : '';
+//                     return `${index}${name}${crown}`;
+//                 }).join('\n')}\n\`\`\``;
+//             }
 
-            const embed = buildEmbed(interaction, data.online ? 'success' : 'fail', onlineCount, maxPlayers, playerList, true);
+//             const embed = buildEmbed(interaction, data.online ? 'success' : 'fail', onlineCount, maxPlayers, playerList, true);
 
-            // Fallback → remove placeholder
-            embed.data.fields = embed.data.fields.filter(f => f.name !== 'Activity Summary');
+//             // Fallback → remove placeholder
+//             embed.data.fields = embed.data.fields.filter(f => f.name !== 'Activity Summary');
 
-            await interaction.editReply({ embeds: [embed] });
+//             await interaction.editReply({ embeds: [embed] });
 
-        } catch (fallbackError) {
-            console.error('Fallback API also failed:', fallbackError);
-            await interaction.editReply({
-                content: '❌ Both the main API and fallback failed. Please try again later.',
-                ephemeral: true,
-            });
-        }
-    }
-}
+//         } catch (fallbackError) {
+//             console.error('Fallback API also failed:', fallbackError);
+//             await interaction.editReply({
+//                 content: '❌ Both the main API and fallback failed. Please try again later.',
+//                 ephemeral: true,
+//             });
+//         }
+//     }
+// }
 
-// 🧱 Embed Builder Helper
-function buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, isFallback) {
-    return new EmbedBuilder()
-        .setColor('#00ff99')
-        .setTitle(`ㅤㅤ✦✦ ValiantMC [1.21+] ✦✦\nAdventure • Creativity • Community`)
-        .addFields(
-            {
-                name: '\u200B',
-                value: `**Status:** ${status === 'success' ? '🟢' : '🔴'}\n**Players Online:** ${onlineCount}/${maxPlayers}`
-            },
-            {
-                name: 'Players list',
-                value: playerList,
-                inline: false
-            },
-            {
-                name: 'vMC IP',
-                value: `\`\`\`\nplay.jinxko.com\nindia.jinxko.com:25590\`\`\``,
-                inline: false
-            },
-            {
-  name: 'Activity Summary',
-  value: `\`\`\`⏳ Fetching activity...\`\`\``,
-  inline: false
-}
+// // 🧱 Embed Builder Helper
+// function buildEmbed(interaction, status, onlineCount, maxPlayers, playerList, isFallback) {
+//     return new EmbedBuilder()
+//         .setColor('#00ff99')
+//         .setTitle(`ㅤㅤ✦✦ ValiantMC [1.21+] ✦✦\nAdventure • Creativity • Community`)
+//         .addFields(
+//             {
+//                 name: '\u200B',
+//                 value: `**Status:** ${status === 'success' ? '🟢' : '🔴'}\n**Players Online:** ${onlineCount}/${maxPlayers}`
+//             },
+//             {
+//                 name: 'Players list',
+//                 value: playerList,
+//                 inline: false
+//             },
+//             {
+//                 name: 'vMC IP',
+//                 value: `\`\`\`\nplay.jinxko.com\nindia.jinxko.com:25590\`\`\``,
+//                 inline: false
+//             },
+//             {
+//   name: 'Activity Summary',
+//   value: `\`\`\`⏳ Fetching activity...\`\`\``,
+//   inline: false
+// }
 
-        )
-        .setFooter({
-            text: `Requested by ${interaction.member?.displayName || interaction.user.username}${isFallback ? ' • Fallback mode' : ''} \nMade with ✨`,
-            iconURL: interaction.user.displayAvatarURL()
-        })
-        .setTimestamp();
-}
+//         )
+//         .setFooter({
+//             text: `Requested by ${interaction.member?.displayName || interaction.user.username}${isFallback ? ' • Fallback mode' : ''} \nMade with ✨`,
+//             iconURL: interaction.user.displayAvatarURL()
+//         })
+//         .setTimestamp();
+// }
 
 async function getPlayers(interaction) {
   try {
@@ -1824,7 +1807,7 @@ async function getServerIP(interaction) {
         .setDescription(`**Connect to Valiant Community\u2003\u2003\u2003**`)
         .addFields(
             { name: 'SAMP Server IP', value: `\`\`\`\n${config.SAMP_SERVER_IP}:${config.SAMP_SERVER_PORT}\n\`\`\`` },
-            { name: 'vMC Server IP', value: '```play.jinxko.com```', inline: true }
+          
         )
         .setFooter({ text: `Requested by ${interaction.member?.displayName || interaction.user.username} \n • Made with ✨ `, iconURL: interaction.user.displayAvatarURL() })
         .setTimestamp();
@@ -1902,14 +1885,14 @@ async function sendHelpEmbed(interaction) {
     )
 
     // 🧱 vMC (Minecraft)
-    .addFields({ name: '\u200B', value: '**🧱 vMC (Minecraft) Commands:**' })
-    .addFields(
-      { name: '/vmc', value: '```Shows online players in vMC```' },
-      { name: '/mcstats', value: '```Shows playerStats in vMC```' },
-      { name: '/vmcname', value: '```Link your vMC to your Discord account```' },
-      { name: '/mctop', value: '```Shows vMC Leaderboard```' },
+    // .addFields({ name: '\u200B', value: '**🧱 vMC (Minecraft) Commands:**' })
+    // .addFields(
+    //   { name: '/vmc', value: '```Shows online players in vMC```' },
+    //   { name: '/mcstats', value: '```Shows playerStats in vMC```' },
+    //   { name: '/vmcname', value: '```Link your vMC to your Discord account```' },
+    //   { name: '/mctop', value: '```Shows vMC Leaderboard```' },
    
-    )
+    // )
 
     // ⚙️ General
     .addFields({ name: '\u200B', value: '**⚙️ General Utility Commands:**' })
