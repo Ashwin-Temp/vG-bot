@@ -381,7 +381,7 @@ function startPlayerMonitor(client) {
                 if (currentLog.left.length > 0) {
                     embed.addFields({ 
                         name: `📤 Left:`, // <--- CLEAN HEADER
-                        value: formatList(currentLog.left, '-'), // Using standard hyphen inside bold
+                        value: formatList(currentLog.left, '\\-'), // Using standard hyphen inside bold
                         inline: false 
                     });
                 }
