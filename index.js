@@ -1593,66 +1593,6 @@ async function getPlayers(interaction) {
 
 
 
-async function trendCommand(interaction) {
-    const timeZone = 'Etc/GMT-1';  // UTC+1
-    const uri = 'mongodb+srv://vg-bot:ashwinjr10@vg-bot.eypjth3.mongodb.net/?retryWrites=true&w=majority&appName=vG-Bot';
-    const client = new MongoClient(uri);
-
-    await interaction.deferReply();  // Defer reply while processing
-
-    try {
-        await client.connect();
-        const db = client.db('valiant');
-        const collection = db.collection('trend_today');
-
-        const now = new Date();
-        const startOfDayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
-        const data = await collection.find({ timestamp: { $gte: startOfDayUTC } }).sort({ timestamp: 1 }).toArray();
-
-        if (data.length === 0) {
-            const noDataEmbed = new EmbedBuilder()
-                .setColor('Orange')
-                .setTitle('📉 No trend data found')
-                .setDescription('No trend data available for today.')
-                .setTimestamp();
-            await interaction.editReply({ embeds: [noDataEmbed] });
-            return;
-        }
-
-        // Generate today's trend graph
-        const imageBuffer = await generateTrendTodayGraph(data, `Today's Player Activity (UTC+5:30)`, timeZone);
-        const attachment = new AttachmentBuilder(imageBuffer, { name: 'trend.png' });
-
-        const embed = new EmbedBuilder()
-            .setTitle(`📈 Valiant Gaming player Trend`)
-            .setImage('attachment://trend.png')
-            .setColor('#00FFCC')
-            .setFooter({
-                text: `Requested by ${interaction.member?.displayName || interaction.user.username} \n • Made with ✨`,
-                iconURL: interaction.user.displayAvatarURL()
-            })
-            .setTimestamp();
-
-        await interaction.editReply({
-            embeds: [embed],
-            files: [attachment]
-        });
-
-    } catch (err) {
-        console.error('Error in /trend:', err);
-        const errorEmbed = new EmbedBuilder()
-            .setColor('Red')
-            .setTitle('⚠️ Error')
-            .setDescription('An error occurred while generating the trend.\n**Try Again!**')
-            .setTimestamp();
-
-        await interaction.editReply({ embeds: [errorEmbed] });
-    } finally {
-        await client.close();
-    }
-}
-
-module.exports = { trendCommand };
 
 
 
