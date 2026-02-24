@@ -56,6 +56,8 @@ client.on('ready', async () => {
     } catch (err) {
         console.error('❌ MongoDB connection failed:', err);
     }
+        startPlayerMonitor(client);
+
 });
 
 // Escape regex to prevent issues with special characters
