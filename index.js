@@ -365,7 +365,7 @@ function startPlayerMonitor(client) {
                     .setColor(embedColor)
                     .setTimestamp() // Updates to "Today at..." on every edit
                     .setFooter({ 
-                        text: `Online: ${currentPlayers.size}/${response.maxplayers} • Made with ✨`, 
+                        text: `Online: ${currentPlayers.size}/${response.maxplayers}`, 
                         iconURL: serverImage 
                     });
 
