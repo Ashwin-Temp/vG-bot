@@ -265,123 +265,152 @@ async function botStatsCommand(interaction, db) {
 // 🕵️ PLAYER MONITOR SYSTEM (Auto-posts Joins/Leaves)
 // ==================================================================
 
-// 1. Global Variables (Must be outside the function to persist!)
+// ==================================================================
+// 🕵️ PLAYER MONITOR SYSTEM (Auto-posts & Edits Same-Minute Logs)
+// ==================================================================
+// ==================================================================
+// 🕵️ PLAYER MONITOR SYSTEM (Auto-posts & Edits Same-Minute Logs)
+// ==================================================================
+
+// ==================================================================
+// 🕵️ PLAYER MONITOR SYSTEM (Auto-posts & Edits Same-Minute Logs)
+// ==================================================================
+
+// 1. Global State
+// ==================================================================
+// 🕵️ PLAYER MONITOR SYSTEM (Smart Burst Merging)
+// ==================================================================
+
+// 1. Global State
 let onlinePlayersCache = new Set();
 let isFirstRun = true;
 
-function startPlayerMonitor(client) {
-    const channelId = '1171433276607578143'; // Your Channel ID
-    const pollInterval = 30000; // 30 seconds
+// 🧠 Memory to track the current "Burst" of logs
+let currentLog = {
+    messageId: null,    
+    createdAt: 0,       // When this log started (to enforce the 2-minute limit)
+    lines: []           // The text lines to show in the description
+};
 
-    console.log('[DEBUG] 🟢 startPlayerMonitor initialized. Waiting 30s for first poll...');
+function startPlayerMonitor(client) {
+    const channelId = '1171433276607578143'; 
+    const pollInterval = 30000; // 30 seconds
+    const MERGE_TIMEOUT = 2 * 60 * 1000; // 🛑 2 Minutes (Stop merging after this)
+
+    console.log('[DEBUG] 🟢 startPlayerMonitor initialized.');
 
     setInterval(() => {
-        console.log('[DEBUG] 🔄 Polling SAMP server for player list...');
-
-        // 2. Query the Server
         samp({ host: config.SAMP_SERVER_IP, port: config.SAMP_SERVER_PORT }, async (err, response) => {
-            
-            // --- Error Handling ---
-            if (err) {
-                console.log('[DEBUG] ⚠️ SAMP Query Error or Timeout:', err.message || err);
-                return;
-            }
-            if (!response || !response.players) {
-                console.log('[DEBUG] ⚠️ Invalid response or no players array received.');
-                return;
-            }
+            if (err || !response || !response.players) return;
 
-            // 3. Process Data
             const currentPlayers = new Set(response.players.map(p => p.name));
-            console.log(`[DEBUG] 👥 Server responded with ${currentPlayers.size} players online.`);
 
-            // --- First Run Logic (Silent) ---
+            // --- First Run ---
             if (isFirstRun) {
                 onlinePlayersCache = currentPlayers;
                 isFirstRun = false;
-                console.log(`[DEBUG] 🤫 First run: Cache populated with ${currentPlayers.size} players. Skipping Discord message.`);
+                console.log(`[DEBUG] 🤫 Cache initialized: ${currentPlayers.size} players.`);
                 return;
             }
 
-            // 4. Calculate Differences (Who Joined? Who Left?)
-            const joinedPlayers = [];
-            const leftPlayers = [];
+            // 1. Calculate Changes
+            const newJoins = [];
+            const newLeaves = [];
 
-            // Check for Joins
-            currentPlayers.forEach(player => {
-                if (!onlinePlayersCache.has(player)) joinedPlayers.push(player);
-            });
+            currentPlayers.forEach(p => { if (!onlinePlayersCache.has(p)) newJoins.push(p); });
+            onlinePlayersCache.forEach(p => { if (!currentPlayers.has(p)) newLeaves.push(p); });
 
-            // Check for Leaves
-            onlinePlayersCache.forEach(player => {
-                if (!currentPlayers.has(player)) leftPlayers.push(player);
-            });
-
-            // --- Stop if No Changes ---
-            if (joinedPlayers.length === 0 && leftPlayers.length === 0) {
-                console.log('[DEBUG] 😴 No changes in player list.');
-                return;
-            }
-
-            // 5. Update Cache for Next Time
+            // Update cache immediately
             onlinePlayersCache = currentPlayers;
-            console.log(`[DEBUG] 🚨 Changes! Joined: ${joinedPlayers.length}, Left: ${leftPlayers.length}`);
 
-            // 6. Build & Send Embed
+            // Stop if no changes
+            if (newJoins.length === 0 && newLeaves.length === 0) return;
+
+            // 2. Get Formatted Time (e.g. "10:30 PM")
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+            // 3. Handle Discord Logic
+            const channel = client.channels.cache.get(channelId);
+            if (!channel) return;
+
             try {
-                const channel = client.channels.cache.get(channelId);
-                if (!channel) {
-                    console.log(`[DEBUG] ❌ Could not find channel with ID ${channelId}`);
-                    return;
+                // 🛑 CHECK 1: Is the last log too old? (> 2 mins)
+                const isTooOld = (Date.now() - currentLog.createdAt) > MERGE_TIMEOUT;
+
+                // 🛑 CHECK 2: Did someone interrupt?
+                const lastMessages = await channel.messages.fetch({ limit: 1 });
+                const lastMessage = lastMessages.first();
+                const isInterrupted = !lastMessage || 
+                                      lastMessage.author.id !== client.user.id || 
+                                      lastMessage.id !== currentLog.messageId;
+
+                // If EITHER is true, we break the chain and start a NEW message
+                if (isTooOld || isInterrupted) {
+                    if (isTooOld) console.log('[DEBUG] ⏱️ Log too old (>2m). Starting fresh.');
+                    if (isInterrupted) console.log('[DEBUG] ✂️ Chat interruption. Starting fresh.');
+                    
+                    currentLog = { 
+                        messageId: null, 
+                        createdAt: Date.now(), 
+                        lines: [] 
+                    };
                 }
 
-                // Determine Color (Green for Join, Red for Leave, Blue for Mixed)
-                let embedColor = config.HEX_COLOR; 
-                if (joinedPlayers.length > 0 && leftPlayers.length === 0) embedColor = 0x57F287; // Green
-                else if (leftPlayers.length > 0 && joinedPlayers.length === 0) embedColor = 0xED4245; // Red
+                // 4. Build the New Lines (Timeline Style)
+                // We add these to our running list of lines
+                if (newJoins.length > 0) {
+                    const names = newJoins.map(n => `\`${n}\``).join(', ');
+                    currentLog.lines.push(`**\`${timeString}\`** 📥 **Joined:** ${names}`);
+                }
 
-                // 🌟 Smart List Formatter (Prevents broken embeds!)
-                const formatList = (players, prefix) => {
-                    const maxDisplay = 15; // Max lines before cutting off
-                    if (players.length > maxDisplay) {
-                        const shown = players.slice(0, maxDisplay);
-                        const remainder = players.length - maxDisplay;
-                        // Returns: "+ PlayerName" ... "...and 5 more"
-                        return shown.map(p => `**${prefix} \`${p}\`**`).join('\n') + `\n*...and ${remainder} more*`;
-                    }
-                    return players.map(p => `**${prefix} \`${p}\`**`).join('\n');
-                };
+                if (newLeaves.length > 0) {
+                    const names = newLeaves.map(n => `\`${n}\``).join(', ');
+                    currentLog.lines.push(`**\`${timeString}\`** 📤 **Left:** ${names}`);
+                }
 
+                // Safety: If description is too long (Discord limit), force reset next time
+                if (currentLog.lines.length > 15) {
+                    // Keep only last 15 lines so it doesn't crash
+                    currentLog.lines = currentLog.lines.slice(-15);
+                }
+
+                // 5. Construct Embed
+                const description = currentLog.lines.join('\n'); // Join with newlines
                 const serverImage = channel.guild.iconURL({ dynamic: true }) || config.ICON_URL;
+
+                // Color logic: Green if latest event was Join, Red if Leave
+                const lastActionWasJoin = newJoins.length > 0;
+                const embedColor = lastActionWasJoin ? 0x57F287 : 0xED4245;
 
                 const embed = new EmbedBuilder()
                     .setColor(embedColor)
+                    .setDescription(description) // <--- The Timeline List
                     .setTimestamp()
                     .setFooter({ 
-                        text: `Online: ${currentPlayers.size}/${response.maxplayers}`, 
+                        text: `Online: ${currentPlayers.size}/${response.maxplayers} • Made with ✨`, 
                         iconURL: serverImage 
                     });
 
-                // Add Fields safely (HEADERS ARE NOW STATIC)
-                if (joinedPlayers.length > 0) {
-                    embed.addFields({ 
-                        name: `📥 Joined`, // <--- Changed back to static
-                        value: formatList(joinedPlayers, '+'), 
-                        inline: true 
-                    });
+                // 6. Send or Edit
+                if (currentLog.messageId) {
+                    // EDIT existing message
+                    const msgToEdit = await channel.messages.fetch(currentLog.messageId).catch(() => null);
+                    if (msgToEdit) {
+                        await msgToEdit.edit({ embeds: [embed] });
+                        console.log(`[DEBUG] ✏️ Updated log.`);
+                    } else {
+                        // Message deleted? Send new.
+                        const newMsg = await channel.send({ embeds: [embed] });
+                        currentLog.messageId = newMsg.id;
+                    }
+                } else {
+                    // SEND new message
+                    const newMsg = await channel.send({ embeds: [embed] });
+                    currentLog.messageId = newMsg.id;
+                    currentLog.createdAt = Date.now(); // Start timer for this new block
+                    console.log(`[DEBUG] 📨 Sent new log.`);
                 }
-
-                if (leftPlayers.length > 0) {
-                    embed.addFields({ 
-                        name: `📤 Left`, // <--- Changed back to static
-                        value: formatList(leftPlayers, '-'), 
-                        inline: true 
-                    });
-                }
-
-                console.log('[DEBUG] 📤 Sending embed...');
-                await channel.send({ embeds: [embed] });
-                console.log('[DEBUG] ✅ Embed sent!');
 
             } catch (error) {
                 console.error('[DEBUG] ❌ Discord API Error:', error);
@@ -389,9 +418,6 @@ function startPlayerMonitor(client) {
         });
     }, pollInterval);
 }
-
-
-
 
 // async function vmcSparkCommand(interaction) {
 //   const playerName = interaction.options.getString('player')?.toLowerCase();
