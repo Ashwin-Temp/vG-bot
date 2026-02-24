@@ -295,7 +295,7 @@ let currentLog = {
 function startPlayerMonitor(client) {
     const channelId = '1171433276607578143'; 
     const pollInterval = 30000; // 30 seconds
-    const MERGE_TIMEOUT = 2 * 60 * 1000; // 🛑 2 Minutes (Stop merging after this)
+    const MERGE_TIMEOUT = 3 * 60 * 1000; // 🛑 3 Minutes (Stop merging after this)
 
     console.log('[DEBUG] 🟢 startPlayerMonitor initialized.');
 
